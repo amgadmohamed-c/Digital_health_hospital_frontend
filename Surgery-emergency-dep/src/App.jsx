@@ -13,6 +13,7 @@ import PatientChat from "./patient/patientChatWithDr";
 import DoctorNavBar from "./doctor/doctorNavBar";
 import NurseNavBar from "./nurse/nurseNavBar";
 import DoctorDashboard from "./doctor/doctorDashPage";
+import DoctorAppointments from "./doctor/doctorAppointments";
 
 const router = createBrowserRouter([
   {
@@ -43,6 +44,7 @@ const router = createBrowserRouter([
     element: <DoctorNavBar />,
     children: [
       { index: true,                    element: <DoctorDashboard />    },
+      {path: "/doctor/appointments",  element: <DoctorAppointments />  },
     ],
   },
   {
