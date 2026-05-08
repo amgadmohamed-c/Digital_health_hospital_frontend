@@ -198,19 +198,36 @@ export const patientAPI = {
     }),
   getMe: () => api.get("/patient/me"),
   getProfileById: (id) => api.get(`/patient/${id}/profile`),
+    
+  getMyAppointments: (id) => api.get(`/patient/${id}/appointments`),
+  addRecord: (formData) =>
+  api.post("/patient/records", formData, {
+    headers: { "Content-Type": "multipart/form-data" },
+  }),
+
 };
 
 // ─── Doctor API ─────────────────────────────────────────────────────────────
 
 export const doctorAPI = {
-  getAvailableSlots: (doctorId) => 
-    api.get("/available/appointment/slots", { params: { doctorId } }), // Changed from data to params for GET
-  bookAppointment: (appointmentData) => api.post("/new/appointment", appointmentData),
-  cancelAppointment: (id, appointmentStatus) => 
+  // Profile endpoints — match backend routes in DoctorProfile_router.ts
+  getMe: () => api.get("/doctor/me"),
+  getProfileById: (id) => api.get(`/doctor/${id}/profile`),
+  editProfile: (formData) =>
+    api.put("/editdoctorprofile", formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    }),
+ 
+  // Appointment / schedule endpoints
+  getAvailableSlots: (doctorId) =>
+    api.get("/available/appointment/slots", { params: { doctorId } }),
+  bookAppointment: (appointmentData) =>
+    api.post("/new/appointment", appointmentData),
+  cancelAppointment: (id, appointmentStatus) =>
     api.patch("/cancel/appointment", { id, appintmentStatus: appointmentStatus }),
-  setAvailability: (doctorId, availabilityArray) => 
+  setAvailability: (doctorId, availabilityArray) =>
     api.put(`/${doctorId}/availability`, availabilityArray),
-  updateVisitData: (appointmentId, visitData) => 
+  updateVisitData: (appointmentId, visitData) =>
     api.put(`/appointment/${appointmentId}/visit-data`, visitData),
 };
 
@@ -243,6 +260,8 @@ export const surgeryAPI = {
   cancelSurgery: (surgeryId) => api.delete(`/cancel/${surgeryId}`),
   updateNotes: (surgeryId, content) => api.put(`/${surgeryId}/notes`, { content }),
   getTodaySurgeries: () => api.get("/get/today/surgeries"),
+  getMyStudentSurgeries: () => api.get("/patient/surgeries"),
+
 };
 
 // ─── Chat API ───────────────────────────────────────────────────────────────

@@ -11,10 +11,10 @@ import axios from "axios";
 const API = "http://localhost:8000";
 
 const ROLE_ROUTES = {
-  DOCTOR:  "/doctor/dashboard",
-  NURSE:   "/nurse/dashboard",
+  DOCTOR:  "/doctor/",
+  NURSE:   "/nurse/",
   ADMIN:   "/admin/dashboard",
-  PATIENT: "/patient/dashboard",
+  PATIENT: "/patient/",
 };
 
 // ─── helpers ────────────────────────────────────────────────────────────────
