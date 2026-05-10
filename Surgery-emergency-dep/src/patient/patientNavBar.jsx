@@ -5,7 +5,7 @@ export default function PatientNavBar() {
   const location = useLocation();
 
   const navLinks = [
-    { name: "Dashboard", path: "/patient/" },
+    { name: "Home", path: "/patient/" },
     { name: "My Surgeries", path: "/patient/surgeries" },
     { name: "Chat with Doctor", path: "/patient/chat" },
     { name: "Appointments", path: "/patient/appointments" },

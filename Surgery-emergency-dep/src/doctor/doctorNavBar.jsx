@@ -5,7 +5,7 @@ export default function DoctorNavBar() {
   const location = useLocation();
 
   const navLinks = [
-    { name: "Dashboard",     path: "/doctor/" },
+    { name: "Home",     path: "/doctor/" },
     { name: "Appointments",  path: "/doctor/appointments" },
     {name : "patientChat" ,  path: "/doctor/chat"},
     { name: "Availability",  path: "/doctor/availability" },
