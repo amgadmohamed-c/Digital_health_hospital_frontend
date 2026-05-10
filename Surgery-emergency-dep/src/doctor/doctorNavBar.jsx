@@ -7,9 +7,11 @@ export default function DoctorNavBar() {
   const navLinks = [
     { name: "Dashboard",     path: "/doctor/" },
     { name: "Appointments",  path: "/doctor/appointments" },
+    {name : "patientChat" ,  path: "/doctor/chat"},
     { name: "Availability",  path: "/doctor/availability" },
     { name: "Surgeries",     path: "/doctor/surgeries" },
     { name: "Profile",       path: "/doctor/profile" },
+    
   ];
 
   return (

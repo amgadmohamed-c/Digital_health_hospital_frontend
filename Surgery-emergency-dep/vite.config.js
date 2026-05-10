@@ -8,7 +8,17 @@ import tailwindcss from '@tailwindcss/vite'
 export default defineConfig({
   plugins: [
     react(),
-    babel({ presets: [reactCompilerPreset()] }) , 
+    babel({ presets: [reactCompilerPreset()] }),
     tailwindcss(),
   ],
-})
+  server: {
+    proxy: {
+      '/socket.io': {
+        target: 'http://localhost:8000',
+        ws: true,
+        changeOrigin: true,
+        rewriteWsOrigin: true,  // ← add this
+      },
+    },
+  },
+});

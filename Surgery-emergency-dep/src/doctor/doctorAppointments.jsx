@@ -20,7 +20,7 @@ import { Link } from "react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
-import { doctorAPI } from "../auth/api";
+import { doctorAPI, patientAPI } from "../auth/api";
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -152,7 +152,6 @@ return ( <div className="appt-card relative group"> <PatientFloat
      glow={sc.glow}
    />
 
-```
   <div
     className="relative overflow-hidden rounded-[2rem] border border-white/40 backdrop-blur-2xl p-7 shadow-2xl transition-all duration-700 hover:-translate-y-3 hover:scale-[1.02]"
     style={{
@@ -336,7 +335,7 @@ return ( <div className="appt-card relative group"> <PatientFloat
 function InfoItem({ icon: Icon, label, value }) {
 return ( <div className="flex items-start gap-3"> <div className="w-9 h-9 rounded-xl bg-slate-100 flex items-center justify-center shrink-0"> <Icon size={15} className="text-slate-500" /> </div>
 
-```
+
   <div>
     <p className="text-[11px] uppercase tracking-[0.2em] text-slate-400 font-bold">
       {label}
@@ -385,8 +384,8 @@ useEffect(() => {
   const load = async () => {
     try {
       const { data } =
-        await doctorAPI.getDoctorAppointments();
-
+        await doctorAPI.getMyAppointments();
+        
       setAppointments(data);
     } catch (err) {
       console.error(err);

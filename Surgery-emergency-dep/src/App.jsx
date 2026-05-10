@@ -14,6 +14,10 @@ import DoctorNavBar from "./doctor/doctorNavBar";
 import NurseNavBar from "./nurse/nurseNavBar";
 import DoctorDashboard from "./doctor/doctorDashPage";
 import DoctorAppointments from "./doctor/doctorAppointments";
+import DoctorProfile from "./doctor/doctorProfilePage";
+import DoctorAvailability from "./doctor/availabilityPage";
+import DoctorChat from "./doctor/doctorChatWithPatient";
+import DoctorSurgeries from "./doctor/doctorSurgery";
 
 const router = createBrowserRouter([
   {
@@ -45,6 +49,11 @@ const router = createBrowserRouter([
     children: [
       { index: true,                    element: <DoctorDashboard />    },
       {path: "/doctor/appointments",  element: <DoctorAppointments />  },
+      {path:"/doctor/profile" , element:<DoctorProfile />},
+      {path:"/doctor/availability" , element:<DoctorAvailability />} , 
+      {path:"/doctor/chat" , element:<DoctorChat /> 
+      },
+      {path:"/doctor/surgeries" , element : <DoctorSurgeries />}
     ],
   },
   {
