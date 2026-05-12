@@ -18,8 +18,14 @@ import DoctorProfile from "./doctor/doctorProfilePage";
 import DoctorAvailability from "./doctor/availabilityPage";
 import DoctorChat from "./doctor/doctorChatWithPatient";
 import DoctorSurgeries from "./doctor/doctorSurgery";
+import SurgeryDepartment from "./landingPage";
+import PatientProfilePage from "./doctor/Patientprofilepage";
 
 const router = createBrowserRouter([
+  {
+    path:"/",
+    element:<SurgeryDepartment />
+  },
   {
     path: "/signin",
     element: <SignIn />,
@@ -53,7 +59,8 @@ const router = createBrowserRouter([
       {path:"/doctor/availability" , element:<DoctorAvailability />} , 
       {path:"/doctor/chat" , element:<DoctorChat /> 
       },
-      {path:"/doctor/surgeries" , element : <DoctorSurgeries />}
+      {path:"/doctor/surgeries" , element : <DoctorSurgeries />},
+      {path:"/doctor/patient/:id" ,  element : <PatientProfilePage />}
     ],
   },
   {

@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { Link } from "react-router";
+import { useNavigate } from "react-router";
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -23,6 +24,7 @@ const steps = [
 
 // ─── Component ────────────────────────────────────────────────────────────────
 export default function LandingSections() {
+  const navigate = useNavigate()
   const wrapperRef  = useRef(null);
   const statsRef    = useRef(null);
   const journeyRef  = useRef(null);
@@ -335,13 +337,17 @@ export default function LandingSections() {
 
           <div className="flex flex-wrap justify-center gap-6 mt-10">
             <Link
-              to="/signup"
+              to="/patient/appointments"
               className="cta-btn px-8 py-4 rounded-2xl bg-gradient-to-r from-cyan-500 to-indigo-600 text-white font-semibold shadow-xl hover:scale-105 hover:shadow-2xl transition-all duration-300"
               style={{ boxShadow: "0 8px 24px rgba(6,182,212,0.35)" }}
             >
               Get Started
             </Link>
-            <button className="cta-btn px-8 py-4 rounded-2xl border border-slate-300 text-slate-800 font-semibold backdrop-blur-xl hover:bg-white/60 hover:scale-105 transition-all duration-300">
+            <button onClick={
+              ()=>{
+                navigate("/")
+              }
+            } className="cta-btn px-8 py-4 rounded-2xl border border-slate-300 text-slate-800 font-semibold backdrop-blur-xl hover:bg-white/60 hover:scale-105 transition-all duration-300">
               Learn More
             </button>
           </div>

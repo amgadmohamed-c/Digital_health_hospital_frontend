@@ -320,6 +320,8 @@ export const emergencyAPI = {
 // ─── Surgery API ──────────────────────────────────────────────────────────────
 
 export const surgeryAPI = {
+  getAllSurgeries: () => api.get("/get/all/surgeries"),
+
   // POST /create/surgery
   createSurgery: (surgeryData) => api.post("/create/surgery", surgeryData),
 

@@ -18,6 +18,7 @@ import {
   CalendarDays,
   Search,
   ChevronLeft,
+  LayoutGrid,
 } from "lucide-react";
 import { surgeryAPI, doctorAPI } from "../auth/api";
 
@@ -27,7 +28,6 @@ gsap.registerPlugin(ScrollTrigger);
 const NOISE =
   "url(\"data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E\")";
 
-// ✅ Keys match Prisma SurgeryStatus enum values exactly
 const STATUS = {
   PENDING:     { label: "Pending",     bg: "bg-amber-100",   text: "text-amber-700",   dot: "bg-amber-500",   icon: Clock },
   IN_PROGRESS: { label: "In Progress", bg: "bg-blue-100",    text: "text-blue-700",    dot: "bg-blue-500",    icon: Activity },
@@ -37,27 +37,28 @@ const STATUS = {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function fmt(date, opts) {
+  if (!date) return "—";
   return new Date(date).toLocaleDateString("en-US", opts);
 }
 function fmtTime(date) {
+  if (!date) return "—";
   return new Date(date).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" });
 }
 function getInitials(name = "") {
   return name.split(" ").map((p) => p[0]).slice(0, 2).join("").toUpperCase();
 }
 
-// ✅ Reads surgery.surgeryStatus (the actual Prisma field name)
+// ✅ Prisma field is `surgeryStatus` — reads that first, falls back to `status`
 function getSurgeryStatus(surgery) {
-  return surgery.surgeryStatus ?? surgery.status ?? "PENDING";
+  return surgery?.surgeryStatus ?? surgery?.status ?? "PENDING";
 }
 
-// ✅ Reads surgery.surgeryType (the actual Prisma field name)
+// ✅ Prisma field is `type` (SurgeryType enum) — NOT surgeryType
 function getSurgeryType(surgery) {
-  return surgery.surgeryType ?? surgery.type ?? "SCHEDULED";
+  return surgery?.type ?? surgery?.surgeryType ?? "SCHEDULED";
 }
 
-// ─── Sub-components ───────────────────────────────────────────────────────────
-
+// ─── StatusBadge ──────────────────────────────────────────────────────────────
 function StatusBadge({ surgery }) {
   const statusKey = getSurgeryStatus(surgery);
   const s = STATUS[statusKey] ?? STATUS.PENDING;
@@ -69,9 +70,12 @@ function StatusBadge({ surgery }) {
   );
 }
 
-function SurgeryCard({ surgery, onCancel, onNotes, isPast }) {
+// ─── SurgeryCard ──────────────────────────────────────────────────────────────
+function SurgeryCard({ surgery, onCancel, onNotes, isPast, showDoctor }) {
   const patientName =
-    surgery.patient?.user?.name ?? surgery.patient?.name ?? "Patient";
+    surgery.patient?.user?.name ?? surgery.patient?.name ?? "Unknown Patient";
+  const doctorName =
+    surgery.surgeon?.user?.name ?? surgery.surgeon?.name ?? null;
   const roomLabel = surgery.room?.name ?? surgery.room?.roomNumber ?? "—";
   const statusKey = getSurgeryStatus(surgery);
 
@@ -91,7 +95,7 @@ function SurgeryCard({ surgery, onCancel, onNotes, isPast }) {
       <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/70 to-transparent" />
 
       <div className="p-5">
-        {/* Header row */}
+        {/* Header */}
         <div className="flex items-start justify-between gap-3 mb-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center shadow-md flex-shrink-0">
@@ -99,10 +103,7 @@ function SurgeryCard({ surgery, onCancel, onNotes, isPast }) {
             </div>
             <div>
               <p className="font-bold text-slate-800 text-sm leading-tight">{patientName}</p>
-              {/* ✅ surgeryType not type */}
-              <p className="text-[11px] text-slate-500 mt-0.5">
-                {getSurgeryType(surgery)}
-              </p>
+              <p className="text-[11px] text-slate-500 mt-0.5">{getSurgeryType(surgery)}</p>
             </div>
           </div>
           <StatusBadge surgery={surgery} />
@@ -130,6 +131,21 @@ function SurgeryCard({ surgery, onCancel, onNotes, isPast }) {
             <span className="truncate">{patientName}</span>
           </div>
         </div>
+
+        {/* Surgeon row — shown in "All Surgeries" tab */}
+        {showDoctor && doctorName && (
+          <div
+            className="flex items-center gap-2 rounded-xl px-3 py-2 mb-4 text-[11px] text-slate-600"
+            style={{ background: "rgba(99,102,241,0.07)", border: "1px solid rgba(99,102,241,0.14)" }}
+          >
+            <Scissors size={11} className="text-indigo-400 flex-shrink-0" />
+            <span className="font-semibold text-indigo-600 mr-1">Surgeon:</span>
+            <span>{doctorName}</span>
+            {surgery.surgeon?.specialization && (
+              <span className="ml-auto text-slate-400">· {surgery.surgeon.specialization}</span>
+            )}
+          </div>
+        )}
 
         {/* Notes preview */}
         {surgery.notes && (
@@ -169,7 +185,6 @@ function SurgeryCard({ surgery, onCancel, onNotes, isPast }) {
 }
 
 // ─── Schedule Modal ────────────────────────────────────────────────────────────
-
 function ScheduleModal({ onClose, onSubmit, allRooms, myPatients, todaySurgeries }) {
   const overlayRef = useRef(null);
   const panelRef   = useRef(null);
@@ -200,7 +215,6 @@ function ScheduleModal({ onClose, onSubmit, allRooms, myPatients, todaySurgeries
     gsap.to(overlayRef.current, { opacity: 0, duration: 0.25, onComplete: cb });
   };
 
-  // ✅ Use surgeryStatus not status for occupied room logic
   const occupiedRoomIds = new Set(
     todaySurgeries
       .filter(s => {
@@ -284,8 +298,7 @@ function ScheduleModal({ onClose, onSubmit, allRooms, myPatients, todaySurgeries
         </div>
 
         <div className="px-7 py-6">
-
-          {/* ── STEP 1: Room grid ─────────────────────────────────────── */}
+          {/* STEP 1: Room grid */}
           {step === 1 && (
             <div>
               <p className="text-sm font-semibold text-slate-700 mb-4">
@@ -328,7 +341,6 @@ function ScheduleModal({ onClose, onSubmit, allRooms, myPatients, todaySurgeries
                     const roomSurgeries = todaySurgeries.filter(
                       s => s.roomId === room.id && getSurgeryStatus(s) !== "CANCELLED"
                     );
-
                     return (
                       <button
                         key={room.id}
@@ -386,10 +398,9 @@ function ScheduleModal({ onClose, onSubmit, allRooms, myPatients, todaySurgeries
             </div>
           )}
 
-          {/* ── STEP 2: Details ───────────────────────────────────────── */}
+          {/* STEP 2: Details */}
           {step === 2 && (
             <div className="space-y-5">
-              {/* Selected room recap */}
               <div
                 className="flex items-center gap-3 rounded-xl px-4 py-3 border border-violet-200"
                 style={{ background: "rgba(139,92,246,0.05)" }}
@@ -406,7 +417,6 @@ function ScheduleModal({ onClose, onSubmit, allRooms, myPatients, todaySurgeries
                 </button>
               </div>
 
-              {/* Time + duration */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="text-xs font-bold text-slate-600 block mb-1.5">
@@ -420,9 +430,7 @@ function ScheduleModal({ onClose, onSubmit, allRooms, myPatients, todaySurgeries
                   />
                 </div>
                 <div>
-                  <label className="text-xs font-bold text-slate-600 block mb-1.5">
-                    Duration (minutes)
-                  </label>
+                  <label className="text-xs font-bold text-slate-600 block mb-1.5">Duration (minutes)</label>
                   <input
                     type="number"
                     min={1}
@@ -434,7 +442,6 @@ function ScheduleModal({ onClose, onSubmit, allRooms, myPatients, todaySurgeries
                 </div>
               </div>
 
-              {/* Patient picker */}
               <div>
                 <label className="text-xs font-bold text-slate-600 block mb-1.5">
                   Patient <span className="text-red-400">*</span>
@@ -449,10 +456,7 @@ function ScheduleModal({ onClose, onSubmit, allRooms, myPatients, todaySurgeries
                     className="w-full pl-8 pr-3 py-2.5 rounded-xl border border-slate-200 text-sm outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-400/20 transition-all"
                   />
                 </div>
-                <div
-                  className="max-h-44 overflow-y-auto rounded-xl border border-slate-200 divide-y divide-slate-100"
-                  style={{ scrollbarWidth: "thin" }}
-                >
+                <div className="max-h-44 overflow-y-auto rounded-xl border border-slate-200 divide-y divide-slate-100" style={{ scrollbarWidth: "thin" }}>
                   {filteredPatients.length === 0 ? (
                     <p className="px-4 py-6 text-center text-sm text-slate-400">No patients found</p>
                   ) : (
@@ -463,22 +467,16 @@ function ScheduleModal({ onClose, onSubmit, allRooms, myPatients, todaySurgeries
                         <button
                           key={p.id}
                           onClick={() => setSelectedPatient(p)}
-                          className={`w-full flex items-center gap-3 px-4 py-2.5 text-left transition-colors ${
-                            isSelected ? "bg-violet-50" : "hover:bg-slate-50"
-                          }`}
+                          className={`w-full flex items-center gap-3 px-4 py-2.5 text-left transition-colors ${isSelected ? "bg-violet-50" : "hover:bg-slate-50"}`}
                         >
                           <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-violet-400 to-purple-500 flex items-center justify-center flex-shrink-0">
                             <span className="text-white text-[10px] font-bold">{getInitials(name)}</span>
                           </div>
                           <div className="min-w-0">
-                            <p className={`text-sm font-semibold truncate ${isSelected ? "text-violet-700" : "text-slate-800"}`}>
-                              {name}
-                            </p>
+                            <p className={`text-sm font-semibold truncate ${isSelected ? "text-violet-700" : "text-slate-800"}`}>{name}</p>
                             <p className="text-[10px] text-slate-400">{p.user?.email ?? p.email ?? ""}</p>
                           </div>
-                          {isSelected && (
-                            <CheckCircle2 size={14} className="text-violet-500 ml-auto flex-shrink-0" />
-                          )}
+                          {isSelected && <CheckCircle2 size={14} className="text-violet-500 ml-auto flex-shrink-0" />}
                         </button>
                       );
                     })
@@ -486,7 +484,6 @@ function ScheduleModal({ onClose, onSubmit, allRooms, myPatients, todaySurgeries
                 </div>
               </div>
 
-              {/* Notes */}
               <div>
                 <label className="text-xs font-bold text-slate-600 block mb-1.5">
                   Surgical notes <span className="text-slate-400 font-normal">(optional)</span>
@@ -500,7 +497,6 @@ function ScheduleModal({ onClose, onSubmit, allRooms, myPatients, todaySurgeries
                 />
               </div>
 
-              {/* Error */}
               {error && (
                 <div className="flex items-center gap-2 rounded-xl bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-600">
                   <AlertCircle size={14} className="flex-shrink-0" />
@@ -508,7 +504,6 @@ function ScheduleModal({ onClose, onSubmit, allRooms, myPatients, todaySurgeries
                 </div>
               )}
 
-              {/* Actions */}
               <div className="flex gap-3 pt-1">
                 <button
                   onClick={() => setStep(1)}
@@ -538,7 +533,6 @@ function ScheduleModal({ onClose, onSubmit, allRooms, myPatients, todaySurgeries
 }
 
 // ─── Notes Modal ──────────────────────────────────────────────────────────────
-
 function NotesModal({ surgery, onClose, onSave }) {
   const overlayRef = useRef(null);
   const panelRef   = useRef(null);
@@ -629,7 +623,6 @@ function NotesModal({ surgery, onClose, onSave }) {
 }
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
-
 export default function DoctorSurgeries() {
   const wrapperRef  = useRef(null);
   const progressRef = useRef(null);
@@ -637,7 +630,8 @@ export default function DoctorSurgeries() {
 
   const [tab, setTab]                   = useState("today");
   const [todaySurgeries, setToday]      = useState([]);
-  const [prevSurgeries, setPrev]        = useState([]);
+  const [mySurgeries, setMySurgeries]   = useState([]);   // ✅ renamed from prevSurgeries — holds ALL doctor surgeries
+  const [allSurgeries, setAllSurgeries] = useState([]);   // ✅ NEW — all surgeries (staff only)
   const [allRooms, setAllRooms]         = useState([]);
   const [myPatients, setMyPatients]     = useState([]);
   const [loading, setLoading]           = useState(true);
@@ -647,31 +641,29 @@ export default function DoctorSurgeries() {
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const [todayRes, allRes, roomsRes, apptsRes] = await Promise.all([
+      // ✅ FIX: getAllSurgeries is now a separate call — don't block on it if it 403s for non-admins
+      const [todayRes, myRes, roomsRes, apptsRes] = await Promise.all([
         surgeryAPI.getTodaySurgeries(),
         surgeryAPI.getDoctorSurgeries(),
         surgeryAPI.getSurgeryRooms(),
         doctorAPI.getMyAppointments(),
       ]);
 
-const todayList = Array.isArray(todayRes.data)
-  ? todayRes.data
-  : todayRes.data?.data ?? [];
+      // ✅ Handle both plain array and wrapped { data: [] } response shapes
+      const todayList = Array.isArray(todayRes.data)
+        ? todayRes.data
+        : Array.isArray(todayRes.data?.data)
+        ? todayRes.data.data
+        : [];
+      setToday(todayList);
 
-setToday(todayList);
-
-const todayIds = new Set(todayList.map(s => s.id));
-
-const allList = Array.isArray(allRes.data)
-  ? allRes.data
-  : allRes.data?.data ?? [];
-      // ✅ Filter previous using surgeryStatus not status
-      setPrev(
-        allList.filter(s => {
-          const st = getSurgeryStatus(s);
-          return !todayIds.has(s.id) && (st === "COMPLETED" || st === "CANCELLED");
-        })
-      );
+      // ✅ getDoctorSurgeries returns a plain array (no wrapper in the service)
+      const myList = Array.isArray(myRes.data)
+        ? myRes.data
+        : Array.isArray(myRes.data?.data)
+        ? myRes.data.data
+        : [];
+      setMySurgeries(myList);
 
       const roomsData = Array.isArray(roomsRes.data)
         ? roomsRes.data
@@ -681,7 +673,9 @@ const allList = Array.isArray(allRes.data)
       setAllRooms(roomsData);
 
       // Derive unique patients from appointments
-      const appointments = apptsRes.data ?? [];
+      const appointments = Array.isArray(apptsRes.data)
+        ? apptsRes.data
+        : apptsRes.data?.data ?? [];
       const seen = new Set();
       const uniquePatients = [];
       for (const appt of appointments) {
@@ -692,8 +686,23 @@ const allList = Array.isArray(allRes.data)
         }
       }
       setMyPatients(uniquePatients);
+
+      // ✅ NEW: Fetch all surgeries separately — silently skip if user lacks permission
+      try {
+        const allRes = await surgeryAPI.getAllSurgeries();
+        const allList = Array.isArray(allRes.data)
+          ? allRes.data
+          : Array.isArray(allRes.data?.data)
+          ? allRes.data.data
+          : [];
+        setAllSurgeries(allList);
+      } catch {
+        // Non-admin/non-staff users won't have access — that's fine
+        setAllSurgeries([]);
+      }
+
     } catch (e) {
-      console.error("Failed to load surgery data", e);
+      console.error("Failed to load surgery data:", e);
     } finally {
       setLoading(false);
     }
@@ -708,6 +717,7 @@ const allList = Array.isArray(allRes.data)
     if (loading) return;
 
     const ctx = gsap.context(() => {
+      gsap.set(progressRef.current, { scaleX: 0 });
       gsap.to(progressRef.current, {
         scaleX: 1, ease: "none",
         scrollTrigger: {
@@ -726,7 +736,8 @@ const allList = Array.isArray(allRes.data)
 
       gsap.fromTo(".surgery-card",
         { opacity: 0, y: 24, scale: 0.97 },
-        { opacity: 1, y: 0, scale: 1, duration: 0.45, stagger: 0.07, ease: "power2.out", delay: 0.1 }
+        { opacity: 1, y: 0, scale: 1, duration: 0.45, stagger: 0.07, ease: "power2.out", delay: 0.1,
+          clearProps: "transform,opacity" }
       );
 
       gsap.to(".glow-tl", {
@@ -761,14 +772,33 @@ const allList = Array.isArray(allRes.data)
     await loadData();
   };
 
-  const displayList = tab === "today" ? todaySurgeries : prevSurgeries;
+  // ✅ Derive "previous" from mySurgeries: anything not in today's list that is terminal
+  const todayIds = new Set(todaySurgeries.map(s => s.id));
+  const prevSurgeries = mySurgeries.filter(s => {
+    const st = getSurgeryStatus(s);
+    return !todayIds.has(s.id) && (st === "COMPLETED" || st === "CANCELLED");
+  });
 
-  // ✅ Use surgeryStatus for stat counts
+  const TABS = [
+    { key: "today",    label: "Today",     count: todaySurgeries.length },
+    { key: "mine",     label: "My Surgeries", count: mySurgeries.length },
+    { key: "previous", label: "Previous",  count: prevSurgeries.length },
+    // Only show All tab if we actually got data (staff/admin only)
+    ...(allSurgeries.length > 0
+      ? [{ key: "all", label: "All Surgeries", count: allSurgeries.length, highlight: true }]
+      : []),
+  ];
+
+  const displayList =
+    tab === "today"    ? todaySurgeries :
+    tab === "mine"     ? mySurgeries :
+    tab === "previous" ? prevSurgeries :
+    tab === "all"      ? allSurgeries :
+    [];
+
   const inProgress = todaySurgeries.filter(s => getSurgeryStatus(s) === "IN_PROGRESS").length;
   const pending    = todaySurgeries.filter(s => getSurgeryStatus(s) === "PENDING").length;
   const completed  = todaySurgeries.filter(s => getSurgeryStatus(s) === "COMPLETED").length;
-  console.log("today surgeries", todaySurgeries);
-  console.log("displayList", displayList);
 
   return (
     <>
@@ -807,19 +837,48 @@ const allList = Array.isArray(allRes.data)
                 </div>
               </div>
 
-              <button
-                onClick={() => setShowSchedule(true)}
-                className="flex items-center gap-2 px-5 py-3 rounded-2xl text-sm font-bold text-white transition-all hover:scale-105 active:scale-95 shadow-lg"
-                style={{
-                  background: "linear-gradient(135deg,#8b5cf6,#7c3aed)",
-                  boxShadow: "0 8px 24px rgba(139,92,246,0.4)",
-                }}
-              >
-                <CalendarPlus size={17} />
-                Schedule Surgery
-              </button>
+              <div className="flex items-center gap-3">
+                {/* ✅ NEW: View All Surgeries button — only if data available */}
+                {allSurgeries.length > 0 && (
+                  <button
+                    onClick={() => setTab("all")}
+                    className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl text-sm font-bold transition-all border ${
+                      tab === "all"
+                        ? "text-white border-transparent shadow-lg"
+                        : "text-indigo-600 border-indigo-200 bg-indigo-50 hover:bg-indigo-100"
+                    }`}
+                    style={tab === "all" ? {
+                      background: "linear-gradient(135deg,#6366f1,#8b5cf6)",
+                      boxShadow: "0 6px 20px rgba(99,102,241,0.35)",
+                    } : {}}
+                  >
+                    <LayoutGrid size={15} />
+                    All Surgeries
+                    <span
+                      className={`px-1.5 py-0.5 rounded-md text-[10px] font-black ${
+                        tab === "all" ? "bg-white/20 text-white" : "bg-indigo-200 text-indigo-700"
+                      }`}
+                    >
+                      {allSurgeries.length}
+                    </span>
+                  </button>
+                )}
+
+                <button
+                  onClick={() => setShowSchedule(true)}
+                  className="flex items-center gap-2 px-5 py-3 rounded-2xl text-sm font-bold text-white transition-all hover:scale-105 active:scale-95 shadow-lg"
+                  style={{
+                    background: "linear-gradient(135deg,#8b5cf6,#7c3aed)",
+                    boxShadow: "0 8px 24px rgba(139,92,246,0.4)",
+                  }}
+                >
+                  <CalendarPlus size={17} />
+                  Schedule Surgery
+                </button>
+              </div>
             </div>
 
+            {/* Stat pills */}
             <div className="flex flex-wrap gap-3 mt-6">
               {[
                 { label: "In Progress", value: inProgress, color: "bg-blue-100 text-blue-700 border-blue-200" },
@@ -837,20 +896,21 @@ const allList = Array.isArray(allRes.data)
 
           {/* ── Tabs ────────────────────────────────────────────────── */}
           <div
-            className="inline-flex rounded-2xl p-1 mb-6 border border-white/40"
+            className="inline-flex rounded-2xl p-1 mb-6 border border-white/40 flex-wrap gap-1"
             style={{ background: "rgba(255,255,255,0.5)", backdropFilter: "blur(12px)" }}
           >
-            {[
-              { key: "today",    label: "Today's Surgeries",  count: todaySurgeries.length },
-              { key: "previous", label: "Previous Surgeries", count: prevSurgeries.length },
-            ].map(({ key, label, count }) => (
+            {TABS.map(({ key, label, count, highlight }) => (
               <button
                 key={key}
                 onClick={() => setTab(key)}
                 className={`relative flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold transition-all duration-300 ${
                   tab === key ? "text-white shadow-lg" : "text-slate-500 hover:text-slate-700"
                 }`}
-                style={tab === key ? { background: "linear-gradient(135deg,#8b5cf6,#7c3aed)" } : {}}
+                style={tab === key ? {
+                  background: highlight
+                    ? "linear-gradient(135deg,#6366f1,#8b5cf6)"
+                    : "linear-gradient(135deg,#8b5cf6,#7c3aed)"
+                } : {}}
               >
                 {label}
                 <span
@@ -880,7 +940,10 @@ const allList = Array.isArray(allRes.data)
               </div>
               <div>
                 <p className="text-lg font-bold text-slate-700 mb-1">
-                  {tab === "today" ? "No surgeries today" : "No previous surgeries"}
+                  {tab === "today"    ? "No surgeries today" :
+                   tab === "mine"     ? "No surgeries found" :
+                   tab === "previous" ? "No previous surgeries" :
+                                        "No surgeries found"}
                 </p>
                 <p className="text-sm text-slate-400 max-w-xs">
                   {tab === "today"
@@ -905,6 +968,7 @@ const allList = Array.isArray(allRes.data)
                   key={surgery.id}
                   surgery={surgery}
                   isPast={tab === "previous"}
+                  showDoctor={tab === "all"}   // ✅ show surgeon name only in All tab
                   onCancel={handleCancel}
                   onNotes={setNotesTarget}
                 />

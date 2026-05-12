@@ -25,7 +25,7 @@ import { patientAPI ,doctorAPI} from "../auth/api";
 
 gsap.registerPlugin(ScrollTrigger);
 
-// ─── Noise texture (matches dashboard) ───────────────────────────────────────
+// ─── Noise texture ────────────────────────────────────────────────────────────
 const NOISE =
   "url(\"data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E\")";
 
@@ -92,7 +92,7 @@ function formatTime(iso) {
   return new Date(iso).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" });
 }
 
-// ─── Doctor Floater (same pattern as surgeries page) ─────────────────────────
+// ─── Doctor Floater ───────────────────────────────────────────────────────────
 function DoctorFloater({ doctor, glow }) {
   const ref = useRef(null);
   useEffect(() => {
@@ -149,16 +149,11 @@ function AppointmentCard({ appointment }) {
           boxShadow: `0 4px 28px ${sc.glow}18`,
         }}
       >
-        {/* Shimmer top edge */}
         <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/80 to-transparent" />
-        {/* Hover bloom */}
         <div className={`absolute inset-0 opacity-0 group-hover:opacity-10 bg-gradient-to-br ${sc.gradient} transition-opacity duration-500 rounded-[2rem]`} />
-        {/* Left accent */}
         <div className={`absolute top-6 left-0 w-1 h-14 bg-gradient-to-b ${sc.gradient} rounded-r-full`} />
 
         <div className="relative z-10 flex flex-col gap-5 pr-12">
-
-          {/* Header */}
           <div className="flex items-start justify-between gap-3">
             <div className="flex items-center gap-3">
               <div
@@ -174,15 +169,12 @@ function AppointmentCard({ appointment }) {
                 </p>
               </div>
             </div>
-
-            {/* Status badge */}
             <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold border ${sc.text} ${sc.bg} ${sc.border} shrink-0`}>
               <span className={`w-1.5 h-1.5 rounded-full ${sc.dot} ${sc.pulse ? "animate-pulse" : ""}`} />
               {sc.label}
             </div>
           </div>
 
-          {/* Info grid */}
           <div className="grid grid-cols-2 gap-3">
             <div className="flex items-center gap-2 text-sm text-slate-600">
               <CalendarDays size={14} className="text-slate-400 shrink-0" />
@@ -204,7 +196,6 @@ function AppointmentCard({ appointment }) {
             )}
           </div>
 
-          {/* Doctor strip */}
           {appointment.doctor?.user && (
             <div
               className="flex items-center gap-3 px-4 py-3 rounded-xl border border-white/50"
@@ -228,7 +219,6 @@ function AppointmentCard({ appointment }) {
             </div>
           )}
 
-          {/* Type pill */}
           <div className="flex items-center gap-2 flex-wrap">
             <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-bold border ${tc.color} ${tc.bg} ${tc.border}`}>
               <TypeIcon size={11} />
@@ -325,22 +315,18 @@ export default function PatientAppointments() {
   const [appointments, setAppointments] = useState([]);
   const [loading, setLoading]           = useState(true);
   const [error, setError]               = useState(null);
-  const [doctors, setDoctors] = useState([]);
+  const [doctors, setDoctors]           = useState([]);
   const [selectedDoctor, setSelectedDoctor] = useState(null);
-  const [bookingModal, setBookingModal] = useState(false);
-  const [selectedSlot, setSelectedSlot] = useState(null);
+  const [bookingModal, setBookingModal]     = useState(false);
+  const [selectedSlot, setSelectedSlot]     = useState(null);
   const [bookingLoading, setBookingLoading] = useState(false);
-  const [appointmentType, setAppointmentType] =
-  useState("HOSPITAL");
+  const [appointmentType, setAppointmentType] = useState("HOSPITAL");
 
   // ── Fetch ──────────────────────────────────────────────────────────────────
   useEffect(() => {
     const load = async () => {
       try {
-        // Route: GET /patient/:id/appointments
-        // The controller reads patientId from JWT so we pass the user's own id.
-        // If you store the user id in localStorage after login, read it here:
-        const userId = localStorage.getItem("userId"); // set this at login
+        const userId = localStorage.getItem("userId");
         const { data } = await patientAPI.getMyAppointments(userId);
         const doctorsRes = await patientAPI.getAvailableDoctors("SURGERY");
         setDoctors(doctorsRes.data);
@@ -354,37 +340,30 @@ export default function PatientAppointments() {
     load();
   }, []);
 
+  const handleBookAppointment = async () => {
+    if (!selectedDoctor || !selectedSlot) return;
+    try {
+      setBookingLoading(true);
+      const payload = {
+        doctorId: selectedDoctor.id,
+        slotId: selectedSlot.id,
+        scheduledAt: selectedSlot.startTime,
+        type: appointmentType,
+        status: "SCHEDULED",
+      };
+      await doctorAPI.bookAppointment(payload);
+      setBookingModal(false);
+      setSelectedSlot(null);
+      const userId = localStorage.getItem("userId");
+      const { data } = await patientAPI.getMyAppointments(userId);
+      setAppointments(data);
+    } catch (err) {
+      console.error("Error booking:", err.response?.data?.err || err.message);
+    } finally {
+      setBookingLoading(false);
+    }
+  };
 
-const handleBookAppointment = async () => {
-  if (!selectedDoctor || !selectedSlot) return;
-
-  try {
-    setBookingLoading(true);
-
-    // This payload matches your controller's logic
-    const payload = {
-      doctorId: selectedDoctor.id,
-      slotId: selectedSlot.id,
-      scheduledAt: selectedSlot.startTime, // Pass the time from the slot
-      type: appointmentType,               // "HOSPITAL" or "ONLINE"
-      status: "SCHEDULED"                  // Default status
-    };
-
-    await doctorAPI.bookAppointment(payload);
-
-    setBookingModal(false);
-    setSelectedSlot(null);
-    
-    // Refresh your list
-    const userId = localStorage.getItem("userId");
-    const { data } = await patientAPI.getMyAppointments(userId);
-    setAppointments(data);
-  } catch (err) {
-    console.error("Error booking:", err.response?.data?.err || err.message);
-  } finally {
-    setBookingLoading(false);
-  }
-};
   // ── GSAP ───────────────────────────────────────────────────────────────────
   useEffect(() => {
     if (loading) return;
@@ -430,26 +409,15 @@ const handleBookAppointment = async () => {
         scaleX: 1, ease: "none",
         scrollTrigger: { trigger: wrapperRef.current, start: "top top", end: "bottom bottom", scrub: 0 },
       });
-      gsap.fromTo(
-        ".doctor-card",
-      {
-          opacity: 0,
-          y: 50,
-           scale: 0.94,
-       },
-      {
-       opacity: 1,
-       y: 0,
-       scale: 1,
-       stagger: 0.08,
-       duration: 0.6,
-       ease: "power4.out",
-       scrollTrigger: {
-       trigger: ".doctor-card",
-       start: "top 85%",
-    },
-  }
-);
+
+      gsap.fromTo(".doctor-card",
+        { opacity: 0, y: 50, scale: 0.94 },
+        {
+          opacity: 1, y: 0, scale: 1,
+          stagger: 0.08, duration: 0.6, ease: "power4.out",
+          scrollTrigger: { trigger: ".doctor-card", start: "top 85%" },
+        }
+      );
 
       ScrollTrigger.refresh();
     }, wrapperRef);
@@ -459,12 +427,14 @@ const handleBookAppointment = async () => {
 
   const upcoming = appointments.filter(isUpcoming);
   const past     = appointments.filter(isPast);
-const filteredSlots =
-  selectedDoctor?.availableSlots || [];
+
+  // ── Only show slots whose startTime is in the future and not taken ─────────
+  const futureAvailableSlots = (selectedDoctor?.availableSlots ?? []).filter(
+    (slot) => !slot.taken && new Date(slot.startTime) > new Date()
+  );
 
   return (
     <>
-      {/* Scroll progress bar */}
       <div
         ref={progressRef}
         style={{
@@ -481,13 +451,12 @@ const filteredSlots =
         className="min-h-screen relative overflow-x-hidden"
         style={{ backgroundImage: NOISE + ", linear-gradient(135deg,#f0f9ff 0%,#e0f2fe 40%,#eff6ff 100%)" }}
       >
-        {/* Ambient glows */}
         <div className="glow-tl pointer-events-none fixed top-[-8rem] left-[-8rem] w-[40rem] h-[40rem] rounded-full bg-violet-400/15 blur-[110px]" />
         <div className="glow-br pointer-events-none fixed bottom-[-8rem] right-[-8rem] w-[40rem] h-[40rem] rounded-full bg-cyan-500/15 blur-[110px]" />
 
         <div className="relative z-10 px-4 md:px-8 xl:px-16 pb-40">
 
-          {/* ── HERO ──────────────────────────────────────────────────── */}
+          {/* ── HERO ───────────────────────────────────────────────────── */}
           <section ref={heroRef} className="min-h-[52vh] flex items-center pt-16 pb-6">
             <div className="w-full max-w-4xl">
               <Link
@@ -526,129 +495,87 @@ const filteredSlots =
               </div>
             </div>
           </section>
-          {/* BOOK APPOINTMENT SECTION */}
-<section className="mb-24">
-  <div className="flex items-center gap-4 mb-10">
-    <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-violet-500 to-cyan-500 flex items-center justify-center shadow-xl">
-      <Plus className="text-white" size={20} />
-    </div>
 
-    <div>
-      <h2 className="text-3xl font-black text-slate-900">
-        Book Appointment
-      </h2>
-
-      <p className="text-slate-400 font-medium">
-        Choose your doctor and reserve a slot
-      </p>
-    </div>
-
-    <div className="h-px flex-1 bg-gradient-to-r from-slate-300/60 to-transparent ml-4" />
-  </div>
-
-  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8">
-    {doctors.map((doctor) => (
-      <div
-        key={doctor.id}
-        className="doctor-card group relative overflow-hidden rounded-[2rem] border border-white/40 backdrop-blur-2xl p-7 shadow-xl hover:-translate-y-2 transition-all duration-500"
-        style={{
-          background: "rgba(255,255,255,0.48)",
-        }}
-      >
-        {/* glow */}
-        <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-700 bg-gradient-to-br from-violet-500/10 to-cyan-500/10" />
-
-        {/* shimmer */}
-        <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white to-transparent" />
-
-        <div className="relative z-10">
-          {/* doctor */}
-          <div className="flex items-center gap-4 mb-6">
-            <div className="relative">
-              <div className="absolute inset-0 rounded-2xl bg-violet-500/30 blur-xl" />
-
-              <div className="relative w-20 h-20 rounded-2xl overflow-hidden border-2 border-white shadow-xl">
-                {doctor.img ? (
-                  <img
-                    src={doctor.img}
-                    alt={doctor.user?.name}
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <div className="w-full h-full bg-gradient-to-br from-violet-100 to-cyan-100 flex items-center justify-center">
-                    <Stethoscope className="text-violet-500" />
-                  </div>
-                )}
+          {/* ── BOOK APPOINTMENT ──────────────────────────────────────── */}
+          <section className="mb-24">
+            <div className="flex items-center gap-4 mb-10">
+              <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-violet-500 to-cyan-500 flex items-center justify-center shadow-xl">
+                <Plus className="text-white" size={20} />
               </div>
+              <div>
+                <h2 className="text-3xl font-black text-slate-900">Book Appointment</h2>
+                <p className="text-slate-400 font-medium">Choose your doctor and reserve a slot</p>
+              </div>
+              <div className="h-px flex-1 bg-gradient-to-r from-slate-300/60 to-transparent ml-4" />
             </div>
 
-            <div>
-              <h3 className="text-2xl font-black text-slate-900 leading-tight">
-                {doctor.user?.name}
-              </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8">
+              {doctors.map((doctor) => (
+                <div
+                  key={doctor.id}
+                  className="doctor-card group relative overflow-hidden rounded-[2rem] border border-white/40 backdrop-blur-2xl p-7 shadow-xl hover:-translate-y-2 transition-all duration-500"
+                  style={{ background: "rgba(255,255,255,0.48)" }}
+                >
+                  <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-700 bg-gradient-to-br from-violet-500/10 to-cyan-500/10" />
+                  <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white to-transparent" />
 
-              <p className="text-violet-600 font-semibold">
-                {doctor.specialization}
-              </p>
+                  <div className="relative z-10">
+                    <div className="flex items-center gap-4 mb-6">
+                      <div className="relative">
+                        <div className="absolute inset-0 rounded-2xl bg-violet-500/30 blur-xl" />
+                        <div className="relative w-20 h-20 rounded-2xl overflow-hidden border-2 border-white shadow-xl">
+                          {doctor.img ? (
+                            <img src={doctor.img} alt={doctor.user?.name} className="w-full h-full object-cover" />
+                          ) : (
+                            <div className="w-full h-full bg-gradient-to-br from-violet-100 to-cyan-100 flex items-center justify-center">
+                              <Stethoscope className="text-violet-500" />
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      <div>
+                        <h3 className="text-2xl font-black text-slate-900 leading-tight">{doctor.user?.name}</h3>
+                        <p className="text-violet-600 font-semibold">{doctor.specialization}</p>
+                        <p className="text-sm text-slate-400">{doctor.department?.name}</p>
+                      </div>
+                    </div>
 
-              <p className="text-sm text-slate-400">
-                {doctor.department?.name}
-              </p>
+                    <div className="space-y-3 mb-7">
+                      <div className="flex items-center gap-2 text-sm text-slate-600">
+                        <MapPin size={14} />
+                        Cairo Medical Center
+                      </div>
+                      <div className="flex items-center gap-2 text-sm text-slate-600">
+                        <CalendarDays size={14} />
+                        {doctor.availableSlots?.length || 0} slots available
+                      </div>
+                    </div>
+
+                    <button
+                      onClick={async () => {
+                        try {
+                          const slotsRes = await doctorAPI.getAvailableSlots(doctor.id);
+                          setSelectedDoctor({ ...doctor, availableSlots: slotsRes.data });
+                          setSelectedSlot(null);
+                          setAppointmentType("HOSPITAL");
+                          setBookingModal(true);
+                        } catch (err) {
+                          console.error("FAILED:", err);
+                        }
+                      }}
+                      className="w-full relative overflow-hidden rounded-2xl px-5 py-4 bg-gradient-to-r from-violet-500 to-cyan-500 text-white font-bold shadow-xl transition-all duration-500 hover:scale-[1.02]"
+                    >
+                      <div className="absolute inset-0 opacity-0 hover:opacity-100 transition-opacity duration-500 bg-white/10" />
+                      <span className="relative flex items-center justify-center gap-2">
+                        Book Appointment
+                        <ChevronRight size={16} />
+                      </span>
+                    </button>
+                  </div>
+                </div>
+              ))}
             </div>
-          </div>
-
-          {/* info */}
-          <div className="space-y-3 mb-7">
-            <div className="flex items-center gap-2 text-sm text-slate-600">
-              <MapPin size={14} />
-              Cairo Medical Center
-            </div>
-
-            <div className="flex items-center gap-2 text-sm text-slate-600">
-              <CalendarDays size={14} />
-              {doctor.availableSlots?.length || 0} slots available
-            </div>
-          </div>
-
-          {/* button */}
-          <button
-onClick={async () => {
-  try {
-    console.log("doctor id:", doctor.id);
-
-    const slotsRes =
-      await doctorAPI.getAvailableSlots(doctor.id);
-
-    console.log("slots:", slotsRes.data);
-
-    setSelectedDoctor({
-      ...doctor,
-      availableSlots: slotsRes.data,
-    });
-
-    setSelectedSlot(null);
-    setAppointmentType("HOSPITAL");
-
-    setBookingModal(true);
-
-  } catch (err) {
-    console.error("FAILED:", err);
-  }
-}}
-            className="w-full relative overflow-hidden rounded-2xl px-5 py-4 bg-gradient-to-r from-violet-500 to-cyan-500 text-white font-bold shadow-xl transition-all duration-500 hover:scale-[1.02]"
-          >
-            <div className="absolute inset-0 opacity-0 hover:opacity-100 transition-opacity duration-500 bg-white/10" />
-
-            <span className="relative flex items-center justify-center gap-2">
-              Book Appointment
-              <ChevronRight size={16} />
-            </span>
-          </button>
-        </div>
-      </div>
-    ))}
-  </div>
-</section>
+          </section>
 
           {/* ── CONTENT ───────────────────────────────────────────────── */}
           {loading ? (
@@ -673,7 +600,6 @@ onClick={async () => {
             <>
               <StatsBar appointments={appointments} />
 
-              {/* Upcoming */}
               <section className="mb-20">
                 <SectionHeader
                   icon={Clock}
@@ -685,14 +611,11 @@ onClick={async () => {
                   <EmptyState message="No upcoming appointments" />
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8 pt-6">
-                    {upcoming.map((a) => (
-                      <AppointmentCard key={a.id} appointment={a} />
-                    ))}
+                    {upcoming.map((a) => <AppointmentCard key={a.id} appointment={a} />)}
                   </div>
                 )}
               </section>
 
-              {/* Past */}
               <section>
                 <SectionHeader
                   icon={CheckCircle2}
@@ -704,9 +627,7 @@ onClick={async () => {
                   <EmptyState message="No past appointments" />
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8 pt-6">
-                    {past.map((a) => (
-                      <AppointmentCard key={a.id} appointment={a} />
-                    ))}
+                    {past.map((a) => <AppointmentCard key={a.id} appointment={a} />)}
                   </div>
                 )}
               </section>
@@ -714,155 +635,122 @@ onClick={async () => {
           )}
         </div>
       </div>
-      {/* BOOKING MODAL */}
-{bookingModal && selectedDoctor && (
-  <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-    {/* backdrop */}
-    <div
-      onClick={() => setBookingModal(false)}
-      className="absolute inset-0 bg-black/40 backdrop-blur-md"
-    />
 
-    {/* modal */}
-    <div
-      className="relative w-full max-w-2xl rounded-[2.5rem] border border-white/30 backdrop-blur-3xl shadow-2xl p-8 overflow-hidden"
-      style={{
-        background: "rgba(255,255,255,0.55)",
-      }}
-    >
-      {/* glow */}
-      <div className="absolute -top-20 -right-20 w-72 h-72 rounded-full bg-violet-400/20 blur-3xl" />
+      {/* ── BOOKING MODAL ─────────────────────────────────────────────── */}
+      {bookingModal && selectedDoctor && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <div
+            onClick={() => setBookingModal(false)}
+            className="absolute inset-0 bg-black/40 backdrop-blur-md"
+          />
 
-      {/* close */}
-      <button
-        onClick={() => setBookingModal(false)}
-        className="absolute top-5 right-5 w-10 h-10 rounded-xl bg-white/60 hover:bg-white transition-all flex items-center justify-center"
-      >
-        <X size={18} />
-      </button>
+          <div
+            className="relative w-full max-w-2xl rounded-[2.5rem] border border-white/30 backdrop-blur-3xl shadow-2xl p-8 overflow-hidden"
+            style={{ background: "rgba(255,255,255,0.55)" }}
+          >
+            <div className="absolute -top-20 -right-20 w-72 h-72 rounded-full bg-violet-400/20 blur-3xl" />
 
-      {/* header */}
-      <div className="flex items-center gap-4 mb-8">
-        <div className="w-20 h-20 rounded-2xl overflow-hidden border-2 border-white shadow-xl">
-          {selectedDoctor.img ? (
-            <img
-              src={selectedDoctor.img}
-              alt=""
-              className="w-full h-full object-cover"
-            />
-          ) : (
-            <div className="w-full h-full bg-gradient-to-br from-violet-100 to-cyan-100 flex items-center justify-center">
-              <Stethoscope className="text-violet-500" />
+            <button
+              onClick={() => setBookingModal(false)}
+              className="absolute top-5 right-5 w-10 h-10 rounded-xl bg-white/60 hover:bg-white transition-all flex items-center justify-center"
+            >
+              <X size={18} />
+            </button>
+
+            {/* Header */}
+            <div className="flex items-center gap-4 mb-8">
+              <div className="w-20 h-20 rounded-2xl overflow-hidden border-2 border-white shadow-xl">
+                {selectedDoctor.img ? (
+                  <img src={selectedDoctor.img} alt="" className="w-full h-full object-cover" />
+                ) : (
+                  <div className="w-full h-full bg-gradient-to-br from-violet-100 to-cyan-100 flex items-center justify-center">
+                    <Stethoscope className="text-violet-500" />
+                  </div>
+                )}
+              </div>
+              <div>
+                <h2 className="text-3xl font-black text-slate-900">{selectedDoctor.user?.name}</h2>
+                <p className="text-violet-600 font-semibold">{selectedDoctor.specialization}</p>
+                <p className="text-slate-400">Select an available slot</p>
+              </div>
             </div>
-          )}
+
+            {/* Appointment type */}
+            <div className="grid grid-cols-2 gap-4 mb-8">
+              <button
+                onClick={() => setAppointmentType("HOSPITAL")}
+                className={`rounded-2xl border p-5 transition-all duration-300 ${
+                  appointmentType === "HOSPITAL"
+                    ? "bg-gradient-to-r from-violet-500 to-cyan-500 text-white border-transparent shadow-xl"
+                    : "bg-white/50 border-white/40 hover:border-violet-300"
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <Building2 size={20} />
+                  <div className="text-left">
+                    <p className="font-black">In Person</p>
+                    <p className="text-xs opacity-70">Hospital visit</p>
+                  </div>
+                </div>
+              </button>
+
+              <button
+                onClick={() => setAppointmentType("ONLINE")}
+                className={`rounded-2xl border p-5 transition-all duration-300 ${
+                  appointmentType === "ONLINE"
+                    ? "bg-gradient-to-r from-violet-500 to-cyan-500 text-white border-transparent shadow-xl"
+                    : "bg-white/50 border-white/40 hover:border-violet-300"
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <Video size={20} />
+                  <div className="text-left">
+                    <p className="font-black">Chat</p>
+                    <p className="text-xs opacity-70">Live messaging consultation</p>
+                  </div>
+                </div>
+              </button>
+            </div>
+
+            {/* Slots — only future, non-taken */}
+            {futureAvailableSlots.length === 0 ? (
+              <div className="flex flex-col items-center justify-center gap-3 py-10 mb-8 rounded-2xl border border-dashed border-slate-200 bg-white/30">
+                <CalendarX size={28} className="text-slate-300" />
+                <p className="text-slate-400 font-semibold text-sm">No upcoming slots available</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-8 max-h-64 overflow-y-auto pr-1" style={{ scrollbarWidth: "thin" }}>
+                {futureAvailableSlots.map((slot) => {
+                  const isSelected = selectedSlot?.id === slot.id;
+                  return (
+                    <button
+                      key={slot.id}
+                      type="button"
+                      onClick={() => setSelectedSlot(slot)}
+                      className={`rounded-2xl border p-4 text-left transition-all duration-300 ${
+                        isSelected
+                          ? "bg-violet-600 text-white border-transparent shadow-xl"
+                          : "bg-white/50 border-white/40 hover:border-violet-300"
+                      }`}
+                    >
+                      <p className="font-bold">{formatTime(slot.startTime)}</p>
+                      <p className="text-xs opacity-70">{formatDate(slot.startTime)}</p>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
+            <button
+              disabled={!selectedSlot || bookingLoading}
+              onClick={handleBookAppointment}
+              className="w-full rounded-2xl py-4 bg-gradient-to-r from-violet-500 to-cyan-500 text-white font-bold shadow-2xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {bookingLoading ? "Processing..." : "Confirm Booking"}
+            </button>
+          </div>
         </div>
-
-        <div>
-          <h2 className="text-3xl font-black text-slate-900">
-            {selectedDoctor.user?.name}
-          </h2>
-
-          <p className="text-violet-600 font-semibold">
-            {selectedDoctor.specialization}
-          </p>
-
-          <p className="text-slate-400">
-            Select an available slot
-          </p>
-        </div>
-      </div>
-      {/* appointment type */}
-<div className="grid grid-cols-2 gap-4 mb-8">
-  <button
-    onClick={() =>
-      setAppointmentType("HOSPITAL")
-    }
-    className={`rounded-2xl border p-5 transition-all duration-300 ${
-      appointmentType === "HOSPITAL"
-        ? "bg-gradient-to-r from-violet-500 to-cyan-500 text-white border-transparent shadow-xl"
-        : "bg-white/50 border-white/40 hover:border-violet-300"
-    }`}
-  >
-    <div className="flex items-center gap-3">
-      <Building2 size={20} />
-      <div className="text-left">
-        <p className="font-black">
-          In Person
-        </p>
-        <p className="text-xs opacity-70">
-          Hospital visit
-        </p>
-      </div>
-    </div>
-  </button>
-
-  <button
-    onClick={() =>
-      setAppointmentType("ONLINE")
-    }
-    className={`rounded-2xl border p-5 transition-all duration-300 ${
-      appointmentType === "ONLINE"
-        ? "bg-gradient-to-r from-violet-500 to-cyan-500 text-white border-transparent shadow-xl"
-        : "bg-white/50 border-white/40 hover:border-violet-300"
-    }`}
-  >
-    <div className="flex items-center gap-3">
-      <Video size={20} />
-      <div className="text-left">
-<p className="font-black">
-  Chat
-</p>
- <p className="text-xs opacity-70">
-  Live messaging consultation
-</p>
-      </div>
-    </div>
-  </button>
-</div>
-      
-
-
-      {/* slots */}
-      
-     
- <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-8">
-  {selectedDoctor.availableSlots?.map((slot) => {
-  const isSelected = selectedSlot?.id === slot.id; // Correct comparison
-  const isTaken = slot.taken;
-
-  return (
-    <button
-      key={slot.id}
-      type="button"
-      disabled={isTaken}
-      onClick={() => setSelectedSlot(slot)} // Updates state
-      className={`rounded-2xl border p-4 text-left transition-all duration-300 ${
-        isTaken
-          ? "bg-slate-100 opacity-50 cursor-not-allowed"
-          : isSelected
-          ? "bg-violet-600 text-white border-transparent shadow-xl" // Active Color
-          : "bg-white/50 border-white/40 hover:border-violet-300"   // Default Color
-      }`}
-    >
-      <p className="font-bold">{formatTime(slot.startTime)}</p>
-      <p className="text-xs opacity-70">{formatDate(slot.startTime)}</p>
-    </button>
-  );
-})}
-</div>
-
-      {/* action */}
-  {/* The Confirm Button */}
-<button
-  disabled={!selectedSlot || bookingLoading} // Button only works if a slot is picked
-  onClick={handleBookAppointment}
-  className="w-full rounded-2xl py-4 bg-gradient-to-r from-violet-500 to-cyan-500 text-white font-bold shadow-2xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
->
-  {bookingLoading ? "Processing..." : "Confirm Booking"}
-</button>
-    </div>
-  </div>
-)}
+      )}
     </>
   );
 }

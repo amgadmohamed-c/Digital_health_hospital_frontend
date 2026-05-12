@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState } from "react";
-import { Link } from "react-router";
+import { Link, useNavigate } from "react-router";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import {
   ArrowLeft, User, Mail, Phone, Calendar, Droplets, AlertTriangle,
   Shield, Edit3, Save, X, Camera, CheckCircle2, Loader2, BadgeCheck,
   FileText, Plus, Scissors, CalendarDays, Upload, Eye,
-  ChevronRight, Activity, XCircle, Stethoscope,
+  ChevronRight, Activity, XCircle, Stethoscope, LogOut,
 } from "lucide-react";
 import { patientAPI, surgeryAPI } from "../auth/api";
 
@@ -200,7 +200,6 @@ function RecordsTab({ records, onAddRecord }) {
     try {
       const fd = new FormData();
       fd.append("recordTitle", title);
-      // "records" matches the multer field name in the backend router
       files.forEach(f => fd.append("records", f));
       await patientAPI.addRecord(fd);
       if (isMounted.current) {
@@ -213,7 +212,6 @@ function RecordsTab({ records, onAddRecord }) {
           if (isMounted.current) {
             setShowForm(false);
             setUploadDone(false);
-            // re-fetch AFTER form closes so it doesn't interfere with local state
             await onAddRecord?.();
           }
         }, 1200);
@@ -294,7 +292,6 @@ function RecordsTab({ records, onAddRecord }) {
             </div>
           )}
 
-          {/* Error banner */}
           {uploadError && (
             <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-red-50 border border-red-200 text-red-600 text-xs font-semibold">
               <AlertTriangle size={13} className="shrink-0" />
@@ -302,7 +299,6 @@ function RecordsTab({ records, onAddRecord }) {
             </div>
           )}
 
-          {/* Success banner */}
           {uploadDone && (
             <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-semibold">
               <CheckCircle2 size={13} className="shrink-0" />
@@ -382,6 +378,8 @@ function RecordsTab({ records, onAddRecord }) {
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function PatientProfile() {
+  const navigate = useNavigate();
+
   const wrapperRef    = useRef(null);
   const progressRef   = useRef(null);
   const avatarRef     = useRef(null);
@@ -404,6 +402,14 @@ export default function PatientProfile() {
   const [previewImg,   setPreviewImg] = useState(null);
   const [imgFile,      setImgFile]    = useState(null);
 
+  // ── Signout ────────────────────────────────────────────────────────────────
+  const handleSignOut = () => {
+    // Clear any stored auth tokens / session data
+    localStorage.clear();
+    sessionStorage.clear();
+    navigate("/signin");
+  };
+
   // ── Fetch ──────────────────────────────────────────────────────────────────
   useEffect(() => {
     const load = async () => {
@@ -413,13 +419,11 @@ export default function PatientProfile() {
         setForm({
           name:      me.name                      || "",
           phone:     me.phone                     || "",
-          // FIX 8: store age as string for controlled input, parse only on submit
           age:       me.age != null ? String(me.age) : "",
           bloodtype: me.patientProfile?.bloodtype || "",
           allergies: me.patientProfile?.allergies || "",
         });
 
-        // FIX 3: userId comes from me.id, not patientProfile.userId
         const userId = me.id ?? localStorage.getItem("profile_id");
         if (userId) {
           try {
@@ -442,7 +446,6 @@ export default function PatientProfile() {
   useEffect(() => {
     if (loading || !wrapperRef.current) return;
 
-    // FIX 5: kill existing ScrollTriggers before creating new ones
     ScrollTrigger.getAll().forEach(t => t.kill());
 
     const ctx = gsap.context(() => {
@@ -533,7 +536,6 @@ export default function PatientProfile() {
   // ── Handlers ───────────────────────────────────────────────────────────────
   const handleChange    = (e) => setForm(f => ({ ...f, [e.target.name]: e.target.value }));
 
-  // FIX 7: prevent the button click from bubbling when inside avatar div
   const handleImgChange = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -547,7 +549,6 @@ export default function PatientProfile() {
       const fd = new FormData();
       Object.entries(form).forEach(([k, v]) => {
         if (v !== "" && v != null) {
-          // FIX 8: parse age cleanly — only append if it's a valid number
           if (k === "age") {
             const parsed = parseInt(v, 10);
             if (!isNaN(parsed)) fd.append(k, parsed);
@@ -572,7 +573,6 @@ export default function PatientProfile() {
     finally { setSaving(false); }
   };
 
-  // FIX 6: use onComplete callback to set state AFTER animation finishes — no race condition
   const handleCancel = () => {
     setPreviewImg(null);
     setImgFile(null);
@@ -620,10 +620,23 @@ export default function PatientProfile() {
 
         <div className="relative z-10 px-4 md:px-8 xl:px-12 py-8 pb-28">
 
-          <Link to="/patient" className="inline-flex items-center gap-2 text-sm font-semibold text-slate-500 hover:text-slate-800 transition-colors mb-8 group">
-            <ArrowLeft size={15} className="transition-transform group-hover:-translate-x-1" />
-            Back to Dashboard
-          </Link>
+          {/* Top nav row */}
+          <div className="flex items-center justify-between mb-8">
+            <Link to="/patient" className="inline-flex items-center gap-2 text-sm font-semibold text-slate-500 hover:text-slate-800 transition-colors group">
+              <ArrowLeft size={15} className="transition-transform group-hover:-translate-x-1" />
+              Back to Dashboard
+            </Link>
+
+            {/* Sign Out button */}
+            <button
+              onClick={handleSignOut}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-2xl text-sm font-bold text-rose-600 border border-rose-200/70 hover:bg-rose-50 hover:border-rose-300 hover:scale-105 active:scale-95 transition-all duration-200"
+              style={{ background: "rgba(255,255,255,0.55)", backdropFilter: "blur(8px)" }}
+            >
+              <LogOut size={14} />
+              Sign Out
+            </button>
+          </div>
 
           {loading ? (
             <div className="flex items-center justify-center py-60">
@@ -660,7 +673,6 @@ export default function PatientProfile() {
                           </div>
                       }
                     </div>
-                    {/* FIX 7: stopPropagation so the button click doesn't bubble up the avatar div */}
                     <button
                       onClick={(e) => { e.stopPropagation(); fileInputRef.current?.click(); }}
                       className="absolute bottom-0 right-0 z-20 w-8 h-8 rounded-full bg-white shadow-lg flex items-center justify-center border-2 border-white hover:scale-110 transition-transform"

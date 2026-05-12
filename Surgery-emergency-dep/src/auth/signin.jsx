@@ -400,7 +400,7 @@ export default function SignIn() {
           {/* About Us button — desktop only */}
           <div className="absolute inset-0 items-center justify-center z-10 pointer-events-none hidden md:flex">
             <button
-              onClick={() => navigate("/about")}
+              onClick={() => navigate("/")}
               onMouseEnter={() => setHovered(true)}
               onMouseLeave={() => setHovered(false)}
               className="pointer-events-auto flex flex-col items-center gap-4 cursor-pointer"
@@ -651,11 +651,11 @@ export default function SignIn() {
               <div className="grid grid-cols-2 gap-2">
                 <QuickCard
                   label="Emergency" bg="bg-blue-50" iconColor="#3b82f6"
-                  Icon={Activity} onClick={() => navigate("/emergency")}
+                  Icon={Activity} onClick={() => navigate("/")}
                 />
                 <QuickCard
                   label="Surgery" bg="bg-green-50" iconColor="#22c55e"
-                  Icon={Stethoscope} onClick={() => navigate("/surgery")}
+                  Icon={Stethoscope} onClick={() => navigate("/")}
                 />
               </div>
             </div>

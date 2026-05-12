@@ -268,7 +268,7 @@ return ( <div className="appt-card relative group"> <PatientFloat
         {appointment.type === "ONLINE" &&
           appointment.status === "ACTIVE" && (
             <Link
-              to={`/doctor/chat?appointmentId=${appointment.id}`}
+              to={`/doctor/chat`}
               className="px-4 py-1.5 rounded-xl text-xs font-bold text-white bg-gradient-to-r from-cyan-500 to-blue-500 flex items-center gap-2 shadow-lg hover:shadow-cyan-500/30 transition-all duration-300"
             >
               Join Session
@@ -280,7 +280,7 @@ return ( <div className="appt-card relative group"> <PatientFloat
       {/* actions */}
       <div className="flex items-center gap-3">
         <Link
-          to={`/doctor/patient/${appointment.patient?.id}`}
+          to={`/doctor/patient/${appointment.patient?.user?.id}`}
           className="flex-1 group/profile relative overflow-hidden rounded-2xl border border-white/40 px-5 py-3 backdrop-blur-xl text-sm font-bold text-slate-700 hover:text-violet-700 transition-all duration-500"
           style={{
             background: "rgba(255,255,255,0.5)",

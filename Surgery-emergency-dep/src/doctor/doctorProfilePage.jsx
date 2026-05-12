@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Link } from "react-router";
+import { Link, useNavigate } from "react-router";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import {
@@ -29,6 +29,7 @@ import {
   AlertTriangle,
   Timer,
   RefreshCw,
+  LogOut,
 } from "lucide-react";
 
 import { doctorAPI, surgeryAPI } from "../auth/api"; // adjust path
@@ -222,6 +223,8 @@ function EmptyState({ icon: Icon, message }) {
 
 // ─── Main component ───────────────────────────────────────────────────────────
 export default function DoctorProfile() {
+  const navigate = useNavigate();
+
   const wrapperRef   = useRef(null);
   const progressRef  = useRef(null);
   const avatarRef    = useRef(null);
@@ -240,11 +243,17 @@ export default function DoctorProfile() {
   const [imgFile,    setImgFile]    = useState(null);
   const [form,       setForm]       = useState({ name: "", phone: "", specialty: "", department:"Surgery", location: "Cairo", experience: "" });
 
-  // ── New: data lists ──────────────────────────────────────────────────────────
   const [appointments,    setAppointments]    = useState([]);
   const [surgeries,       setSurgeries]       = useState([]);
   const [loadingAppts,    setLoadingAppts]    = useState(true);
   const [loadingSurgeries,setLoadingSurgeries]= useState(true);
+
+  // ─── Sign out ──────────────────────────────────────────────────────────────
+  const handleSignOut = () => {
+    localStorage.clear();
+    sessionStorage.clear();
+    navigate("/signin");
+  };
 
   // ─── Fetch doctor ─────────────────────────────────────────────────────────
   useEffect(() => {
@@ -261,12 +270,10 @@ export default function DoctorProfile() {
           experience:  data.doctorProfile?.experience || "",
         });
 
-        // fetch appointments using doctorProfile id
         const doctorProfileId = data.doctorProfile?.id;
         if (doctorProfileId) {
           doctorAPI.getAvailableSlots(doctorProfileId)
             .then((res) => {
-              // getAvailableSlots returns time slots; we use them to show today's schedule
               const slots = Array.isArray(res.data) ? res.data : [];
               setAppointments(slots);
             })
@@ -282,7 +289,6 @@ export default function DoctorProfile() {
       }
     })();
 
-    // fetch today's surgeries independently
     surgeryAPI.getTodaySurgeries()
       .then((res) => {
         const list = Array.isArray(res.data) ? res.data : [];
@@ -334,7 +340,6 @@ export default function DoctorProfile() {
     return () => ctx.revert();
   }, [loading]);
 
-  // Edit panel animation
   useEffect(() => {
     if (!editRef.current || !editing) return;
     gsap.fromTo(editRef.current,
@@ -343,7 +348,6 @@ export default function DoctorProfile() {
     );
   }, [editing]);
 
-  // Animate list rows when data arrives
   useEffect(() => {
     if (!loadingAppts && appointments.length > 0) {
       setTimeout(() => {
@@ -448,13 +452,27 @@ export default function DoctorProfile() {
         <div className="pointer-events-none fixed bottom-[-8rem] right-[-8rem] w-[36rem] h-[36rem] rounded-full bg-violet-500/20 blur-[110px]" />
 
         <div className="relative z-10 px-4 md:px-8 xl:px-12 py-8 pb-28">
-          <Link
-            to="/doctor"
-            className="inline-flex items-center gap-2 text-sm font-semibold text-slate-500 hover:text-slate-800 transition-colors mb-8 group"
-          >
-            <ArrowLeft size={15} className="transition-transform group-hover:-translate-x-1" />
-            Back to Dashboard
-          </Link>
+
+          {/* Top nav row */}
+          <div className="flex items-center justify-between mb-8">
+            <Link
+              to="/doctor"
+              className="inline-flex items-center gap-2 text-sm font-semibold text-slate-500 hover:text-slate-800 transition-colors group"
+            >
+              <ArrowLeft size={15} className="transition-transform group-hover:-translate-x-1" />
+              Back to Dashboard
+            </Link>
+
+            {/* Sign Out button */}
+            <button
+              onClick={handleSignOut}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-2xl text-sm font-bold text-rose-600 border border-rose-200/70 hover:bg-rose-50 hover:border-rose-300 hover:scale-105 active:scale-95 transition-all duration-200"
+              style={{ background: "rgba(255,255,255,0.55)", backdropFilter: "blur(8px)" }}
+            >
+              <LogOut size={14} />
+              Sign Out
+            </button>
+          </div>
 
           {loading ? (
             <div className="flex items-center justify-center py-60">
@@ -577,11 +595,11 @@ export default function DoctorProfile() {
                 {/* Professional info */}
                 <Glass className="p-5">
                   <p className="text-[10px] font-bold tracking-[0.22em] uppercase text-slate-400 mb-3">Professional Info</p>
-                  <InfoRow icon={Mail}      label="Email"      value={doctor?.email}                            accent="#6366f1" />
-                  <InfoRow icon={Phone}     label="Phone"      value={doctor?.phone}                            accent="#8b5cf6" />
-                  <InfoRow icon={Stethoscope} label="Specialty" value={doctor?.doctorProfile?.specialization}  accent="#06b6d4" />
-                  <InfoRow icon={Building2} label="Department" value={"SURGERY"}        accent="#f43f5e" />
-                  <InfoRow icon={MapPin}    label="Location"   value={"SURGERY"}         accent="#10b981" />
+                  <InfoRow icon={Mail}        label="Email"      value={doctor?.email}                           accent="#6366f1" />
+                  <InfoRow icon={Phone}       label="Phone"      value={doctor?.phone}                           accent="#8b5cf6" />
+                  <InfoRow icon={Stethoscope} label="Specialty"  value={doctor?.doctorProfile?.specialization}  accent="#06b6d4" />
+                  <InfoRow icon={Building2}   label="Department" value={"SURGERY"}                               accent="#f43f5e" />
+                  <InfoRow icon={MapPin}      label="Location"   value={"SURGERY"}                               accent="#10b981" />
                 </Glass>
 
                 {/* Stats */}
