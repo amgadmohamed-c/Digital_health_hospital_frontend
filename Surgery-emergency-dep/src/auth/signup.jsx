@@ -47,7 +47,7 @@ export default function SignUp() {
 
       // Feature cards stagger in
       gsap.from(featureRefs.current, {
-        y: 24, opacity: 0, duration: 0.5, stagger: 0.12,
+        y: 24, opacity: 1, duration: 0.5, stagger: 0.12,
         ease: "power2.out", delay: 0.4,
       });
     });

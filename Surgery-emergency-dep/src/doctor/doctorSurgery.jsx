@@ -19,6 +19,10 @@ import {
   Search,
   ChevronLeft,
   LayoutGrid,
+  Zap,
+  Wrench,
+  WifiOff,
+  Cpu,
 } from "lucide-react";
 import { surgeryAPI, doctorAPI } from "../auth/api";
 
@@ -35,6 +39,13 @@ const STATUS = {
   CANCELLED:   { label: "Cancelled",   bg: "bg-red-100",     text: "text-red-600",     dot: "bg-red-500",     icon: XCircle },
 };
 
+const DEVICE_STATUS = {
+  AVAILABLE:      { dot: "bg-emerald-400", label: "Ready",       icon: Zap },
+  IN_USE:         { dot: "bg-blue-400",    label: "In Use",      icon: Activity },
+  MAINTENANCE:    { dot: "bg-amber-400",   label: "Maintenance", icon: Wrench },
+  OUT_OF_SERVICE: { dot: "bg-red-400",     label: "Out of Svc",  icon: WifiOff },
+};
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function fmt(date, opts) {
   if (!date) return "—";
@@ -47,13 +58,9 @@ function fmtTime(date) {
 function getInitials(name = "") {
   return name.split(" ").map((p) => p[0]).slice(0, 2).join("").toUpperCase();
 }
-
-// ✅ Prisma field is `surgeryStatus` — reads that first, falls back to `status`
 function getSurgeryStatus(surgery) {
   return surgery?.surgeryStatus ?? surgery?.status ?? "PENDING";
 }
-
-// ✅ Prisma field is `type` (SurgeryType enum) — NOT surgeryType
 function getSurgeryType(surgery) {
   return surgery?.type ?? surgery?.surgeryType ?? "SCHEDULED";
 }
@@ -95,7 +102,6 @@ function SurgeryCard({ surgery, onCancel, onNotes, isPast, showDoctor }) {
       <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/70 to-transparent" />
 
       <div className="p-5">
-        {/* Header */}
         <div className="flex items-start justify-between gap-3 mb-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center shadow-md flex-shrink-0">
@@ -109,7 +115,6 @@ function SurgeryCard({ surgery, onCancel, onNotes, isPast, showDoctor }) {
           <StatusBadge surgery={surgery} />
         </div>
 
-        {/* Info grid */}
         <div className="grid grid-cols-2 gap-2 mb-4">
           <div className="flex items-center gap-2 text-[11px] text-slate-500">
             <CalendarDays size={11} className="text-violet-400 flex-shrink-0" />
@@ -132,7 +137,6 @@ function SurgeryCard({ surgery, onCancel, onNotes, isPast, showDoctor }) {
           </div>
         </div>
 
-        {/* Surgeon row — shown in "All Surgeries" tab */}
         {showDoctor && doctorName && (
           <div
             className="flex items-center gap-2 rounded-xl px-3 py-2 mb-4 text-[11px] text-slate-600"
@@ -147,7 +151,6 @@ function SurgeryCard({ surgery, onCancel, onNotes, isPast, showDoctor }) {
           </div>
         )}
 
-        {/* Notes preview */}
         {surgery.notes && (
           <div
             className="rounded-xl px-3 py-2 mb-4 text-[11px] text-slate-600 leading-relaxed"
@@ -158,28 +161,249 @@ function SurgeryCard({ surgery, onCancel, onNotes, isPast, showDoctor }) {
           </div>
         )}
 
-        {/* Actions — only for non-terminal, non-past surgeries */}
-        {!isPast &&
-          statusKey !== "CANCELLED" &&
-          statusKey !== "COMPLETED" && (
-            <div className="flex gap-2">
-              <button
-                onClick={() => onNotes(surgery)}
-                className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-semibold text-violet-700 border border-violet-200 hover:bg-violet-50 transition-colors"
-              >
-                <FileText size={13} />
-                {surgery.notes ? "Edit Notes" : "Add Notes"}
-              </button>
-              <button
-                onClick={() => onCancel(surgery.id)}
-                className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold text-red-600 border border-red-200 hover:bg-red-50 transition-colors"
-              >
-                <XCircle size={13} />
-                Cancel
-              </button>
+        {!isPast && statusKey !== "CANCELLED" && statusKey !== "COMPLETED" && (
+          <div className="flex gap-2">
+            <button
+              onClick={() => onNotes(surgery)}
+              className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-semibold text-violet-700 border border-violet-200 hover:bg-violet-50 transition-colors"
+            >
+              <FileText size={13} />
+              {surgery.notes ? "Edit Notes" : "Add Notes"}
+            </button>
+            <button
+              onClick={() => onCancel(surgery.id)}
+              className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold text-red-600 border border-red-200 hover:bg-red-50 transition-colors"
+            >
+              <XCircle size={13} />
+              Cancel
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── DeviceTooltip ─────────────────────────────────────────────────────────────
+function DeviceTooltip({ devices, visible }) {
+  const ref = useRef(null);
+
+  useEffect(() => {
+    if (!ref.current) return;
+    if (visible) {
+      gsap.fromTo(ref.current,
+        { opacity: 0, y: 8, scale: 0.96 },
+        { opacity: 1, y: 0, scale: 1, duration: 0.22, ease: "power2.out" }
+      );
+    } else {
+      gsap.to(ref.current, { opacity: 0, y: 4, scale: 0.97, duration: 0.15, ease: "power2.in" });
+    }
+  }, [visible]);
+
+  const available = devices.filter(d => d.status === "AVAILABLE").length;
+  const inUse     = devices.filter(d => d.status === "IN_USE").length;
+  const issues    = devices.filter(d => d.status === "MAINTENANCE" || d.status === "OUT_OF_SERVICE").length;
+
+  return (
+    <div
+      ref={ref}
+      className="absolute left-1/2 -translate-x-1/2 z-50 pointer-events-none"
+      style={{
+        bottom: "calc(100% + 10px)",
+        opacity: 0,
+        minWidth: "220px",
+        maxWidth: "260px",
+      }}
+    >
+      {/* Arrow */}
+      <div
+        className="absolute left-1/2 -translate-x-1/2 -bottom-[6px] w-3 h-3 rotate-45 border-r border-b border-white/30"
+        style={{ background: "rgba(17,10,50,0.92)" }}
+      />
+
+      <div
+        className="rounded-2xl border border-white/20 shadow-2xl overflow-hidden"
+        style={{
+          background: "rgba(17,10,50,0.92)",
+          backdropFilter: "blur(20px)",
+        }}
+      >
+        {/* Header */}
+        <div
+          className="px-3.5 py-2.5 border-b border-white/10 flex items-center justify-between"
+          style={{ background: "rgba(139,92,246,0.18)" }}
+        >
+          <div className="flex items-center gap-2">
+            <Cpu size={11} className="text-violet-300" />
+            <span className="text-[11px] font-bold text-white">Medical Devices</span>
+          </div>
+          <div className="flex items-center gap-2 text-[9px] font-semibold">
+            {available > 0 && <span className="text-emerald-400">{available} ready</span>}
+            {inUse > 0     && <span className="text-blue-400">{inUse} in use</span>}
+            {issues > 0    && <span className="text-amber-400">{issues} issue{issues > 1 ? "s" : ""}</span>}
+          </div>
+        </div>
+
+        {/* Device list */}
+        <div className="px-3 py-2 space-y-1.5 max-h-48 overflow-y-auto" style={{ scrollbarWidth: "none" }}>
+          {devices.length === 0 ? (
+            <p className="text-[10px] text-white/40 text-center py-2 italic">No devices registered</p>
+          ) : (
+            devices.map(device => {
+              const ds = DEVICE_STATUS[device.status] ?? DEVICE_STATUS.AVAILABLE;
+              const DevIcon = ds.icon;
+              return (
+                <div key={device.id} className="flex items-center gap-2.5 py-1">
+                  <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${ds.dot}`} />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[11px] text-white font-semibold truncate leading-tight">{device.name}</p>
+                    {device.type && (
+                      <p className="text-[9px] text-white/40 truncate">{device.type}</p>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-1 flex-shrink-0">
+                    <DevIcon size={9} className={
+                      device.status === "AVAILABLE"      ? "text-emerald-400" :
+                      device.status === "IN_USE"         ? "text-blue-400" :
+                      device.status === "MAINTENANCE"    ? "text-amber-400" :
+                      "text-red-400"
+                    } />
+                    <span className={`text-[9px] font-bold ${
+                      device.status === "AVAILABLE"      ? "text-emerald-400" :
+                      device.status === "IN_USE"         ? "text-blue-400" :
+                      device.status === "MAINTENANCE"    ? "text-amber-400" :
+                      "text-red-400"
+                    }`}>{ds.label}</span>
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── RoomButton ────────────────────────────────────────────────────────────────
+function RoomButton({ room, occupied, active, onClick, roomSurgeries }) {
+  const [tooltipVisible, setTooltipVisible] = useState(false);
+  const hoverTimerRef = useRef(null);
+  const devices = room.devices ?? [];
+  const availableCount = devices.filter(d => d.status === "AVAILABLE").length;
+
+  const handleMouseEnter = () => {
+    hoverTimerRef.current = setTimeout(() => {
+      setTooltipVisible(true);
+    }, 1000); // 1 second delay
+  };
+
+  const handleMouseLeave = () => {
+    clearTimeout(hoverTimerRef.current);
+    setTooltipVisible(false);
+  };
+
+  useEffect(() => {
+    return () => clearTimeout(hoverTimerRef.current);
+  }, []);
+
+  return (
+    <div className="relative" onMouseEnter={handleMouseEnter} onMouseLeave={handleMouseLeave}>
+      {/* Device tooltip — appears above the card after 1s hover */}
+      {devices.length >= 0 && (
+        <DeviceTooltip devices={devices} visible={tooltipVisible} />
+      )}
+
+      <button
+        onClick={() => !occupied && onClick(room)}
+        disabled={occupied}
+        className={`relative rounded-2xl border p-4 text-left transition-all duration-200 w-full ${
+          occupied
+            ? "opacity-50 cursor-not-allowed border-slate-200 bg-slate-50"
+            : active
+            ? "border-violet-400 shadow-lg shadow-violet-500/15"
+            : "border-slate-200 hover:border-violet-300 hover:shadow-md"
+        }`}
+        style={active ? { background: "rgba(139,92,246,0.06)" } : {}}
+      >
+        {/* top accent bar when active */}
+        {active && (
+          <div className="absolute inset-x-0 top-0 h-[2px] bg-gradient-to-r from-violet-400 to-purple-500 rounded-t-2xl" />
+        )}
+
+        {/* Room icon + checkmark */}
+        <div className="flex items-center justify-between mb-2">
+          <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${
+            occupied ? "bg-slate-200" : active ? "bg-violet-100" : "bg-slate-100"
+          }`}>
+            <BedDouble size={16} className={active ? "text-violet-600" : "text-slate-500"} />
+          </div>
+          {active && (
+            <div className="w-4 h-4 rounded-full bg-violet-500 flex items-center justify-center">
+              <CheckCircle2 size={10} className="text-white" />
             </div>
           )}
-      </div>
+        </div>
+
+        {/* Room name & type */}
+        <p className={`text-sm font-bold mb-0.5 ${active ? "text-violet-700" : "text-slate-800"}`}>
+          {room.name ?? `Room ${room.roomNumber}`}
+        </p>
+        <p className="text-[10px] text-slate-400 mb-2">
+          {room.type ?? room.department?.name ?? "Operating"}
+        </p>
+
+        {/* Occupied notice */}
+        {occupied && roomSurgeries.length > 0 && (
+          <p className="text-[10px] text-amber-600 mb-2 font-medium">
+            In use — {fmtTime(roomSurgeries[0].scheduledAt)}
+          </p>
+        )}
+
+        {/* Device summary bar */}
+        <div
+          className="flex items-center gap-1.5 rounded-lg px-2 py-1.5 mt-1"
+          style={{
+            background: active ? "rgba(139,92,246,0.08)" : "rgba(100,116,139,0.06)",
+            border: "1px solid rgba(100,116,139,0.1)",
+          }}
+        >
+          <Cpu size={9} className={active ? "text-violet-400" : "text-slate-400"} />
+          {devices.length === 0 ? (
+            <span className="text-[9px] text-slate-400 italic">No devices</span>
+          ) : (
+            <>
+              <span className="text-[9px] font-semibold text-slate-500">
+                {devices.length} device{devices.length !== 1 ? "s" : ""}
+              </span>
+              {/* Mini status dots */}
+              <div className="ml-auto flex items-center gap-0.5">
+                {devices.slice(0, 5).map(d => (
+                  <span
+                    key={d.id}
+                    className={`w-1.5 h-1.5 rounded-full ${DEVICE_STATUS[d.status]?.dot ?? "bg-slate-400"}`}
+                    title={d.name}
+                  />
+                ))}
+                {devices.length > 5 && (
+                  <span className="text-[8px] text-slate-400 ml-0.5">+{devices.length - 5}</span>
+                )}
+              </div>
+            </>
+          )}
+          {/* Hover hint */}
+          <span className="text-[8px] text-slate-300 ml-auto whitespace-nowrap hidden group-hover:block">
+            Hold to see
+          </span>
+        </div>
+
+        {/* Subtle "hover for devices" hint text */}
+        {devices.length > 0 && !occupied && (
+          <p className="text-[8px] text-slate-300 mt-1.5 text-center">
+            hover to see devices
+          </p>
+        )}
+      </button>
     </div>
   );
 }
@@ -298,15 +522,26 @@ function ScheduleModal({ onClose, onSubmit, allRooms, myPatients, todaySurgeries
         </div>
 
         <div className="px-7 py-6">
+
           {/* STEP 1: Room grid */}
           {step === 1 && (
             <div>
-              <p className="text-sm font-semibold text-slate-700 mb-4">
-                Select an operating room
-                <span className="ml-2 text-xs font-normal text-slate-400">
-                  ({allRooms.filter(r => !occupiedRoomIds.has(r.id)).length} available)
-                </span>
-              </p>
+              <div className="flex items-center justify-between mb-4">
+                <p className="text-sm font-semibold text-slate-700">
+                  Select an operating room
+                  <span className="ml-2 text-xs font-normal text-slate-400">
+                    ({allRooms.filter(r => !occupiedRoomIds.has(r.id)).length} available)
+                  </span>
+                </p>
+                {/* Hint pill */}
+                <div
+                  className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] text-slate-500 border border-slate-200"
+                  style={{ background: "rgba(139,92,246,0.04)" }}
+                >
+                  <Cpu size={9} className="text-violet-400" />
+                  Hover 1s to see devices
+                </div>
+              </div>
 
               {todaySurgeries.filter(s => getSurgeryStatus(s) !== "CANCELLED").length > 0 && (
                 <div className="mb-5 rounded-xl border border-amber-200 bg-amber-50 p-3">
@@ -342,44 +577,14 @@ function ScheduleModal({ onClose, onSubmit, allRooms, myPatients, todaySurgeries
                       s => s.roomId === room.id && getSurgeryStatus(s) !== "CANCELLED"
                     );
                     return (
-                      <button
+                      <RoomButton
                         key={room.id}
-                        onClick={() => !occupied && setSelectedRoom(room)}
-                        disabled={occupied}
-                        className={`relative rounded-2xl border p-4 text-left transition-all duration-200 ${
-                          occupied
-                            ? "opacity-50 cursor-not-allowed border-slate-200 bg-slate-50"
-                            : active
-                            ? "border-violet-400 shadow-lg shadow-violet-500/15"
-                            : "border-slate-200 hover:border-violet-300 hover:shadow-md"
-                        }`}
-                        style={active ? { background: "rgba(139,92,246,0.06)" } : {}}
-                      >
-                        {active && (
-                          <div className="absolute inset-x-0 top-0 h-[2px] bg-gradient-to-r from-violet-400 to-purple-500 rounded-t-2xl" />
-                        )}
-                        <div className={`w-9 h-9 rounded-xl flex items-center justify-center mb-2 ${
-                          occupied ? "bg-slate-200" : active ? "bg-violet-100" : "bg-slate-100"
-                        }`}>
-                          <BedDouble size={16} className={active ? "text-violet-600" : "text-slate-500"} />
-                        </div>
-                        <p className={`text-sm font-bold mb-0.5 ${active ? "text-violet-700" : "text-slate-800"}`}>
-                          {room.name ?? `Room ${room.roomNumber}`}
-                        </p>
-                        <p className="text-[10px] text-slate-400">
-                          {room.type ?? room.department?.name ?? "Operating"}
-                        </p>
-                        {occupied && roomSurgeries.length > 0 && (
-                          <p className="text-[10px] text-amber-600 mt-1 font-medium">
-                            In use — {fmtTime(roomSurgeries[0].scheduledAt)}
-                          </p>
-                        )}
-                        {active && (
-                          <div className="absolute top-3 right-3 w-4 h-4 rounded-full bg-violet-500 flex items-center justify-center">
-                            <CheckCircle2 size={10} className="text-white" />
-                          </div>
-                        )}
-                      </button>
+                        room={room}
+                        occupied={occupied}
+                        active={active}
+                        onClick={setSelectedRoom}
+                        roomSurgeries={roomSurgeries}
+                      />
                     );
                   })}
                 </div>
@@ -409,6 +614,21 @@ function ScheduleModal({ onClose, onSubmit, allRooms, myPatients, todaySurgeries
                 <span className="text-sm font-semibold text-violet-700">
                   {selectedRoom?.name ?? `Room ${selectedRoom?.roomNumber}`}
                 </span>
+                {/* Device summary in step 2 */}
+                {(selectedRoom?.devices ?? []).length > 0 && (
+                  <div className="flex items-center gap-1 ml-2">
+                    {(selectedRoom.devices ?? []).slice(0, 6).map(d => (
+                      <span
+                        key={d.id}
+                        className={`w-1.5 h-1.5 rounded-full ${DEVICE_STATUS[d.status]?.dot ?? "bg-slate-400"}`}
+                        title={`${d.name} — ${DEVICE_STATUS[d.status]?.label ?? d.status}`}
+                      />
+                    ))}
+                    {(selectedRoom.devices ?? []).length > 6 && (
+                      <span className="text-[9px] text-slate-400">+{selectedRoom.devices.length - 6}</span>
+                    )}
+                  </div>
+                )}
                 <button
                   onClick={() => setStep(1)}
                   className="ml-auto text-xs text-violet-500 hover:text-violet-700 flex items-center gap-1"
@@ -630,8 +850,8 @@ export default function DoctorSurgeries() {
 
   const [tab, setTab]                   = useState("today");
   const [todaySurgeries, setToday]      = useState([]);
-  const [mySurgeries, setMySurgeries]   = useState([]);   // ✅ renamed from prevSurgeries — holds ALL doctor surgeries
-  const [allSurgeries, setAllSurgeries] = useState([]);   // ✅ NEW — all surgeries (staff only)
+  const [mySurgeries, setMySurgeries]   = useState([]);
+  const [allSurgeries, setAllSurgeries] = useState([]);
   const [allRooms, setAllRooms]         = useState([]);
   const [myPatients, setMyPatients]     = useState([]);
   const [loading, setLoading]           = useState(true);
@@ -641,7 +861,6 @@ export default function DoctorSurgeries() {
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      // ✅ FIX: getAllSurgeries is now a separate call — don't block on it if it 403s for non-admins
       const [todayRes, myRes, roomsRes, apptsRes] = await Promise.all([
         surgeryAPI.getTodaySurgeries(),
         surgeryAPI.getDoctorSurgeries(),
@@ -649,7 +868,6 @@ export default function DoctorSurgeries() {
         doctorAPI.getMyAppointments(),
       ]);
 
-      // ✅ Handle both plain array and wrapped { data: [] } response shapes
       const todayList = Array.isArray(todayRes.data)
         ? todayRes.data
         : Array.isArray(todayRes.data?.data)
@@ -657,7 +875,6 @@ export default function DoctorSurgeries() {
         : [];
       setToday(todayList);
 
-      // ✅ getDoctorSurgeries returns a plain array (no wrapper in the service)
       const myList = Array.isArray(myRes.data)
         ? myRes.data
         : Array.isArray(myRes.data?.data)
@@ -665,6 +882,7 @@ export default function DoctorSurgeries() {
         : [];
       setMySurgeries(myList);
 
+      // Rooms now include devices[] from the updated service
       const roomsData = Array.isArray(roomsRes.data)
         ? roomsRes.data
         : Array.isArray(roomsRes.data?.rooms)
@@ -672,7 +890,6 @@ export default function DoctorSurgeries() {
         : [];
       setAllRooms(roomsData);
 
-      // Derive unique patients from appointments
       const appointments = Array.isArray(apptsRes.data)
         ? apptsRes.data
         : apptsRes.data?.data ?? [];
@@ -687,7 +904,6 @@ export default function DoctorSurgeries() {
       }
       setMyPatients(uniquePatients);
 
-      // ✅ NEW: Fetch all surgeries separately — silently skip if user lacks permission
       try {
         const allRes = await surgeryAPI.getAllSurgeries();
         const allList = Array.isArray(allRes.data)
@@ -697,7 +913,6 @@ export default function DoctorSurgeries() {
           : [];
         setAllSurgeries(allList);
       } catch {
-        // Non-admin/non-staff users won't have access — that's fine
         setAllSurgeries([]);
       }
 
@@ -772,7 +987,6 @@ export default function DoctorSurgeries() {
     await loadData();
   };
 
-  // ✅ Derive "previous" from mySurgeries: anything not in today's list that is terminal
   const todayIds = new Set(todaySurgeries.map(s => s.id));
   const prevSurgeries = mySurgeries.filter(s => {
     const st = getSurgeryStatus(s);
@@ -780,10 +994,9 @@ export default function DoctorSurgeries() {
   });
 
   const TABS = [
-    { key: "today",    label: "Today",     count: todaySurgeries.length },
+    { key: "today",    label: "Today",        count: todaySurgeries.length },
     { key: "mine",     label: "My Surgeries", count: mySurgeries.length },
-    { key: "previous", label: "Previous",  count: prevSurgeries.length },
-    // Only show All tab if we actually got data (staff/admin only)
+    { key: "previous", label: "Previous",     count: prevSurgeries.length },
     ...(allSurgeries.length > 0
       ? [{ key: "all", label: "All Surgeries", count: allSurgeries.length, highlight: true }]
       : []),
@@ -838,7 +1051,6 @@ export default function DoctorSurgeries() {
               </div>
 
               <div className="flex items-center gap-3">
-                {/* ✅ NEW: View All Surgeries button — only if data available */}
                 {allSurgeries.length > 0 && (
                   <button
                     onClick={() => setTab("all")}
@@ -854,11 +1066,9 @@ export default function DoctorSurgeries() {
                   >
                     <LayoutGrid size={15} />
                     All Surgeries
-                    <span
-                      className={`px-1.5 py-0.5 rounded-md text-[10px] font-black ${
-                        tab === "all" ? "bg-white/20 text-white" : "bg-indigo-200 text-indigo-700"
-                      }`}
-                    >
+                    <span className={`px-1.5 py-0.5 rounded-md text-[10px] font-black ${
+                      tab === "all" ? "bg-white/20 text-white" : "bg-indigo-200 text-indigo-700"
+                    }`}>
                       {allSurgeries.length}
                     </span>
                   </button>
@@ -913,11 +1123,9 @@ export default function DoctorSurgeries() {
                 } : {}}
               >
                 {label}
-                <span
-                  className={`px-1.5 py-0.5 rounded-md text-[10px] font-black ${
-                    tab === key ? "bg-white/20 text-white" : "bg-slate-200 text-slate-600"
-                  }`}
-                >
+                <span className={`px-1.5 py-0.5 rounded-md text-[10px] font-black ${
+                  tab === key ? "bg-white/20 text-white" : "bg-slate-200 text-slate-600"
+                }`}>
                   {count}
                 </span>
               </button>
@@ -968,7 +1176,7 @@ export default function DoctorSurgeries() {
                   key={surgery.id}
                   surgery={surgery}
                   isPast={tab === "previous"}
-                  showDoctor={tab === "all"}   // ✅ show surgeon name only in All tab
+                  showDoctor={tab === "all"}
                   onCancel={handleCancel}
                   onNotes={setNotesTarget}
                 />

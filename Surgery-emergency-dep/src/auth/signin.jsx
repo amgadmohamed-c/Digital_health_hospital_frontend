@@ -323,19 +323,8 @@ export default function SignIn() {
           0%, 100% { box-shadow: 0 0 0 3px rgba(34,197,94,0.2); }
           50%       { box-shadow: 0 0 0 5px rgba(34,197,94,0.1); }
         }
-        @keyframes shimmer {
-          0%   { background-position: -400px 0; }
-          100% { background-position:  400px 0; }
-        }
-        .skeleton {
-          background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
-          background-size: 400px 100%;
-          animation: shimmer 1.4s ease-in-out infinite;
-          border-radius: 10px;
-        }
-        .right-panel::-webkit-scrollbar { display: none; }
-        .right-panel { -ms-overflow-style: none; scrollbar-width: none; }
-      `}</style>
+   
+`}</style>
 
       <div className="flex flex-col md:flex-row min-h-screen w-full">
 
@@ -411,7 +400,7 @@ export default function SignIn() {
                   className="absolute rounded-full border border-white/20"
                   style={{
                     width: hovered ? 170 : 140, height: hovered ? 170 : 140,
-                    transition: "all 0.4s cubic-bezier(0.34,1.56,0.64,1)",
+                    transition: "all 0.4s ",
                     animation: "ping-slow 3s ease-in-out infinite",
                   }}
                 />
@@ -419,7 +408,7 @@ export default function SignIn() {
                   className="absolute rounded-full border border-white/10"
                   style={{
                     width: hovered ? 210 : 180, height: hovered ? 210 : 180,
-                    transition: "all 0.4s cubic-bezier(0.34,1.56,0.64,1)",
+                    transition: "all 0.4s ",
                     animation: "ping-slow 3s ease-in-out infinite 0.6s",
                   }}
                 />
@@ -438,7 +427,7 @@ export default function SignIn() {
                     <div className="absolute bottom-1 left-1/2 -translate-x-1/2 w-1.5 h-1.5 bg-white rounded-full opacity-40" />
                   </div>
                   <Info size={hovered ? 46 : 38} className="text-white drop-shadow-lg"
-                    style={{ transition: "all 0.4s cubic-bezier(0.34,1.56,0.64,1)" }} />
+                    style={{ transition: "all 0.4s " }} />
                 </div>
               </div>
               <div

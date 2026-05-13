@@ -226,7 +226,7 @@ function AppointmentCard({ appointment }) {
             </div>
             {appointment.type === "ONLINE" && appointment.status === "ACTIVE" && (
               <Link
-                to={`/patient/chat?appointmentId=${appointment.id}`}
+                to={`/patient/chat`}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-bold text-white bg-gradient-to-r from-cyan-500 to-blue-500 shadow-md hover:shadow-lg transition-shadow"
               >
                 <Video size={11} />
